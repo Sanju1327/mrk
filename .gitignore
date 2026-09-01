@@ -1,0 +1,41 @@
+# ==========================================
+# CodeCraft — Root .gitignore
+# ==========================================
+
+# Environment & Secret files
+.env
+.env.local
+.env.*.local
+*.env
+
+# Operating System Files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE & Editor Configurations
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+*.swp
+*.swo
+
+# Backend Build & Runtime
+backend/target/
+backend/.mvn/
+backend/*.log
+backend/logs/
+
+# Frontend Build & Runtime
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/*.local
+frontend/.eslintcache
+frontend/coverage/
+
+# Sandbox temporary runner directories
+sandbox-tmp/
+scratch/
