@@ -4,6 +4,9 @@ import { AppShell } from '@/components/layout/AppShell';
 import { LandingPage } from '@/features/landing/LandingPage';
 import { LoginPage } from '@/features/auth/LoginPage';
 import { RegisterPage } from '@/features/auth/RegisterPage';
+import { CourseListPage } from '@/features/courses/pages/CourseListPage';
+import { CourseDetailPage } from '@/features/courses/pages/CourseDetailPage';
+import { LessonViewPage } from '@/features/courses/pages/LessonViewPage';
 import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
 
 // Placeholder views for scaffolding
@@ -22,11 +25,20 @@ export const AppRoutes: React.FC = () => {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/courses" element={<ComingSoon title="Courses & Syllabus" />} />
+        <Route path="/courses" element={<CourseListPage />} />
+        <Route path="/courses/:slug" element={<CourseDetailPage />} />
         <Route path="/problems" element={<ComingSoon title="Coding Problems Catalog" />} />
         <Route path="/quizzes" element={<ComingSoon title="Interactive Quizzes" />} />
 
         {/* Student Protected Routes */}
+        <Route
+          path="/lessons/:lessonId"
+          element={
+            <ProtectedRoute>
+              <LessonViewPage />
+            </ProtectedRoute>
+          }
+        />
         <Route
           path="/dashboard"
           element={

@@ -183,6 +183,23 @@ export const LandingPage: React.FC = () => {
             </CardHeader>
           </Card>
         </div>
+
+        {/* Featured Course Syllabus Preview */}
+        <div className="rounded-2xl border border-primary/20 bg-gradient-to-r from-primary/10 via-background to-card p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="space-y-2 max-w-xl">
+            <span className="text-xs font-bold uppercase tracking-wider text-primary">Featured Curriculum</span>
+            <h3 className="text-2xl font-bold">Java Foundations & Object-Oriented Programming</h3>
+            <p className="text-sm text-muted-foreground">
+              A comprehensive deep-dive into modern Java syntax, collections, generics, streams, memory management, and clean architecture.
+            </p>
+          </div>
+          <Link to="/courses">
+            <Button size="lg" className="gap-2 bg-primary hover:bg-primary/90 shrink-0">
+              <BookOpen className="h-4 w-4" />
+              <span>Explore Course Catalog</span>
+            </Button>
+          </Link>
+        </div>
       </section>
     </div>
   );
