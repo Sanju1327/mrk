@@ -2,17 +2,14 @@ import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Code2, BookOpen, Terminal, Trophy, User, ShieldAlert, LogOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/useAuth';
 
 export const Navbar: React.FC = () => {
   const navigate = useNavigate();
-  const token = localStorage.getItem('token');
-  const userJson = localStorage.getItem('user');
-  const user = userJson ? JSON.parse(userJson) : null;
-  const isAdmin = user?.roles?.includes('ROLE_ADMIN');
+  const { user, isAuthenticated, isAdmin, logout } = useAuth();
 
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
+    logout();
     navigate('/login');
   };
 
@@ -52,12 +49,12 @@ export const Navbar: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          {token ? (
+          {isAuthenticated ? (
             <div className="flex items-center gap-3">
               <Link to="/dashboard">
                 <Button variant="outline" size="sm" className="flex items-center gap-2">
                   <User className="h-4 w-4" />
-                  <span>{user?.username || 'Dashboard'}</span>
+                  <span>{user?.fullName || user?.username || 'Dashboard'}</span>
                 </Button>
               </Link>
               <Button variant="ghost" size="icon" onClick={handleLogout} title="Logout">
