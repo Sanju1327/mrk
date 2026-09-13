@@ -10,9 +10,15 @@ const api = axios.create({
 // Request interceptor for injecting Bearer token
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('token');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    // Never send Authorization header to login or register endpoints
+    const isPublicAuthEndpoint =
+      config.url?.endsWith('/auth/login') || config.url?.endsWith('/auth/register');
+
+    if (!isPublicAuthEndpoint) {
+      const token = localStorage.getItem('token');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     return config;
   },

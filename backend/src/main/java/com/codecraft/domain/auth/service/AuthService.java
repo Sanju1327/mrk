@@ -1,6 +1,7 @@
 package com.codecraft.domain.auth.service;
 
 import com.codecraft.common.exception.BadRequestException;
+import com.codecraft.common.exception.ConflictException;
 import com.codecraft.domain.auth.dto.*;
 import com.codecraft.domain.user.entity.Role;
 import com.codecraft.domain.user.entity.User;
@@ -34,11 +35,11 @@ public class AuthService {
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
-            throw new BadRequestException("Username '" + request.getUsername() + "' is already taken");
+            throw new ConflictException("Username '" + request.getUsername() + "' is already taken");
         }
 
         if (userRepository.existsByEmail(request.getEmail())) {
-            throw new BadRequestException("Email '" + request.getEmail() + "' is already registered");
+            throw new ConflictException("Email '" + request.getEmail() + "' is already registered");
         }
 
         Role studentRole = roleRepository.findByName("ROLE_STUDENT")

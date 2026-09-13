@@ -16,6 +16,8 @@ public interface ProblemRepository extends JpaRepository<Problem, Long> {
 
     Optional<Problem> findBySlug(String slug);
 
+    boolean existsBySlug(String slug);
+
     Optional<Problem> findFirstByDailyChallengeTrue();
 
     Page<Problem> findByTopicId(Long topicId, Pageable pageable);

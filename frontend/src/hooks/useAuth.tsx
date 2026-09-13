@@ -14,7 +14,9 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  isAdmin: boolean;
+  isSuperAdmin: boolean;
+  isTeacher: boolean;
+  isAdmin: boolean; // Alias for isSuperAdmin for backwards compatibility
   login: (payload: LoginPayload) => Promise<void>;
   register: (payload: RegisterPayload) => Promise<void>;
   logout: () => void;
@@ -32,7 +34,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [token, setToken] = useState<string | null>(() =>
     localStorage.getItem('token')
   );
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  // If token exists, initialize in loading state so route guards do not redirect prematurely
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    return !!localStorage.getItem('token');
+  });
 
   // Persist auth state to localStorage
   const persistAuth = useCallback((accessToken: string, userData: User) => {
@@ -52,7 +57,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   // Verify token on mount by calling /api/auth/me
   useEffect(() => {
     const verifyToken = async () => {
-      if (!token) return;
+      const currentToken = localStorage.getItem('token');
+      if (!currentToken) {
+        setIsLoading(false);
+        return;
+      }
+
       setIsLoading(true);
       try {
         const freshUser = await authApi.getMe();
@@ -65,6 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         setIsLoading(false);
       }
     };
+
     verifyToken();
     // Only run on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -101,7 +112,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   }, [clearAuth]);
 
   const isAuthenticated = !!token && !!user;
-  const isAdmin = user?.roles?.includes('ROLE_ADMIN') ?? false;
+  // Exactly three roles: STUDENT, TEACHER, SUPER_ADMIN
+  const isSuperAdmin = user?.roles?.includes('ROLE_SUPER_ADMIN') ?? false;
+  const isTeacher = isSuperAdmin || (user?.roles?.includes('ROLE_TEACHER') ?? false);
+  const isAdmin = isSuperAdmin; // Compatibility alias
 
   const value = useMemo<AuthContextType>(
     () => ({
@@ -109,12 +123,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       token,
       isAuthenticated,
       isLoading,
+      isSuperAdmin,
+      isTeacher,
       isAdmin,
       login,
       register,
       logout,
     }),
-    [user, token, isAuthenticated, isLoading, isAdmin, login, register, logout]
+    [user, token, isAuthenticated, isLoading, isSuperAdmin, isTeacher, isAdmin, login, register, logout]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

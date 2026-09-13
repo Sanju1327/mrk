@@ -25,6 +25,8 @@ public class LessonDetailDto {
     private Boolean completed;
     private Long nextLessonId;
     private Long prevLessonId;
+    private java.util.List<ContentBlockDto> contentBlocks;
+    private java.util.List<CourseResourceDto> resources;
 
     public static LessonDetailDto fromEntity(
             Lesson lesson,
@@ -32,6 +34,10 @@ public class LessonDetailDto {
             Long nextLessonId,
             Long prevLessonId
     ) {
+        java.util.List<ContentBlockDto> blocks = lesson.getContentBlocks() != null ?
+                lesson.getContentBlocks().stream().map(ContentBlockDto::fromEntity).toList() :
+                java.util.Collections.emptyList();
+
         return LessonDetailDto.builder()
                 .id(lesson.getId())
                 .topicId(lesson.getTopic().getId())
@@ -47,6 +53,8 @@ public class LessonDetailDto {
                 .completed(completed != null ? completed : false)
                 .nextLessonId(nextLessonId)
                 .prevLessonId(prevLessonId)
+                .contentBlocks(blocks)
+                .resources(java.util.Collections.emptyList())
                 .build();
     }
 }

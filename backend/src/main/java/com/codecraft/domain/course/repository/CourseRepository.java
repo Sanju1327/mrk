@@ -12,6 +12,12 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
 
     List<Course> findByPublishedTrueOrderByDisplayOrderAsc();
 
+    List<Course> findByTeacherIdOrderByDisplayOrderAsc(Long teacherId);
+
+    List<Course> findByStatusOrderByDisplayOrderAsc(com.codecraft.domain.course.entity.CourseStatus status);
+
+    long countByStatus(com.codecraft.domain.course.entity.CourseStatus status);
+
     Optional<Course> findBySlug(String slug);
 
     boolean existsBySlug(String slug);

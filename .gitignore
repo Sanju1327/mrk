@@ -39,3 +39,5 @@ frontend/coverage/
 # Sandbox temporary runner directories
 sandbox-tmp/
 scratch/
+tools/
+uploads/

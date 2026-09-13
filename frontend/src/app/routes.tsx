@@ -9,15 +9,14 @@ import { CourseDetailPage } from '@/features/courses/pages/CourseDetailPage';
 import { LessonViewPage } from '@/features/courses/pages/LessonViewPage';
 import { ProblemListPage } from '@/features/problems/pages/ProblemListPage';
 import { ProblemWorkspacePage } from '@/features/problems/pages/ProblemWorkspacePage';
-import { ProtectedRoute } from '@/components/auth/ProtectedRoute';
-
-// Placeholder views for scaffolding
-const ComingSoon: React.FC<{ title: string }> = ({ title }) => (
-  <div className="container max-w-screen-2xl px-4 py-20 text-center space-y-4">
-    <h1 className="text-3xl font-bold">{title}</h1>
-    <p className="text-muted-foreground">Feature implementation in upcoming phases.</p>
-  </div>
-);
+import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
+import { QuizPage } from '@/features/quizzes/pages/QuizPage';
+import { ProgressPage } from '@/features/progress/pages/ProgressPage';
+import { ProfilePage } from '@/features/profile/pages/ProfilePage';
+import { ManagementRoute } from '@/features/admin/ManagementRoute';
+import { CourseBuilderPage } from '@/features/teacher/pages/CourseBuilderPage';
+import { StudentProtectedRoute } from '@/components/auth/StudentProtectedRoute';
+import { TeacherProtectedRoute } from '@/components/auth/TeacherProtectedRoute';
 
 export const AppRoutes: React.FC = () => {
   return (
@@ -31,49 +30,55 @@ export const AppRoutes: React.FC = () => {
         <Route path="/courses/:slug" element={<CourseDetailPage />} />
         <Route path="/problems" element={<ProblemListPage />} />
         <Route path="/problems/:slug" element={<ProblemWorkspacePage />} />
-        <Route path="/quizzes" element={<ComingSoon title="Interactive Quizzes" />} />
+        <Route path="/quizzes" element={<QuizPage />} />
 
         {/* Student Protected Routes */}
         <Route
           path="/lessons/:lessonId"
           element={
-            <ProtectedRoute>
+            <StudentProtectedRoute>
               <LessonViewPage />
-            </ProtectedRoute>
+            </StudentProtectedRoute>
           }
         />
         <Route
           path="/dashboard"
           element={
-            <ProtectedRoute>
-              <ComingSoon title="Student Dashboard" />
-            </ProtectedRoute>
+            <StudentProtectedRoute>
+              <DashboardPage />
+            </StudentProtectedRoute>
           }
         />
         <Route
           path="/progress"
           element={
-            <ProtectedRoute>
-              <ComingSoon title="Progress & Achievements" />
-            </ProtectedRoute>
+            <StudentProtectedRoute>
+              <ProgressPage />
+            </StudentProtectedRoute>
           }
         />
         <Route
           path="/profile"
           element={
-            <ProtectedRoute>
-              <ComingSoon title="User Profile" />
-            </ProtectedRoute>
+            <StudentProtectedRoute>
+              <ProfilePage />
+            </StudentProtectedRoute>
           }
         />
 
-        {/* Admin Protected Routes */}
+        {/* Management Portal Route - Teachers & Super Admin */}
+        <Route path="/admin" element={<ManagementRoute />} />
+
+        {/* Backward compatible alias for /teacher -> redirects to /admin */}
+        <Route path="/teacher" element={<Navigate to="/admin" replace />} />
+
+        {/* Teacher Course Studio Builder */}
         <Route
-          path="/admin"
+          path="/teacher/courses/:courseId/builder"
           element={
-            <ProtectedRoute requireAdmin>
-              <ComingSoon title="Admin Portal" />
-            </ProtectedRoute>
+            <TeacherProtectedRoute>
+              <CourseBuilderPage />
+            </TeacherProtectedRoute>
           }
         />
 

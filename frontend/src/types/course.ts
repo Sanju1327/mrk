@@ -1,16 +1,51 @@
 export type CourseLevel = 'BEGINNER' | 'INTERMEDIATE' | 'ADVANCED';
+export type CourseStatus = 'DRAFT' | 'PUBLISHED' | 'ARCHIVED';
+export type ContentBlockType = 'TEXT' | 'VIDEO' | 'IMAGE' | 'DOCUMENT' | 'LINK' | 'CODE' | 'QUESTION' | 'QUIZ';
+export type ResourceType = 'DOCUMENT' | 'SLIDES' | 'SOURCE_CODE' | 'EXTERNAL_LINK';
+
+export interface InstructorSummary {
+  id: number;
+  fullName: string;
+  avatarUrl: string | null;
+  bio: string | null;
+}
+
+export interface ContentBlock {
+  id: number;
+  lessonId: number;
+  type: ContentBlockType;
+  title: string;
+  content: string;
+  dataJson: string | null;
+  displayOrder: number;
+  createdAt?: string;
+}
+
+export interface CourseResource {
+  id: number;
+  courseId: number;
+  title: string;
+  url: string;
+  type: ResourceType;
+  description: string | null;
+  displayOrder: number;
+}
 
 export interface CourseSummary {
   id: number;
   title: string;
   slug: string;
   description: string;
+  category?: string;
   level: CourseLevel;
+  status?: CourseStatus;
   estimatedHours: number;
+  estimatedDuration?: string;
   iconUrl: string | null;
   published: boolean;
   topicCount: number;
   lessonCount: number;
+  instructor?: InstructorSummary | null;
 }
 
 export interface LessonSummary {
@@ -35,15 +70,20 @@ export interface CourseDetail {
   title: string;
   slug: string;
   description: string;
+  category?: string;
   level: CourseLevel;
+  status?: CourseStatus;
   estimatedHours: number;
+  estimatedDuration?: string;
   iconUrl: string | null;
   published: boolean;
   totalLessons: number;
   isEnrolled: boolean;
   completedLessons: number;
   progressPercentage: number;
+  instructor?: InstructorSummary | null;
   topics: TopicDetail[];
+  resources?: CourseResource[];
 }
 
 export interface LessonDetail {
@@ -61,6 +101,7 @@ export interface LessonDetail {
   completed: boolean;
   nextLessonId: number | null;
   prevLessonId: number | null;
+  contentBlocks?: ContentBlock[];
 }
 
 export interface Enrollment {

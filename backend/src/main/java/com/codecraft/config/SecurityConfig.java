@@ -45,6 +45,8 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
+                .httpBasic(AbstractHttpConfigurer::disable)
+                .formLogin(AbstractHttpConfigurer::disable)
                 .cors(cors -> cors.configurationSource(corsConfigurationSource))
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(ex -> ex
@@ -58,9 +60,16 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.GET, "/api/courses/**", "/api/topics/**", "/api/problems/**").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll()
+                        .requestMatchers("/error").permitAll()
 
-                        // Admin endpoints
-                        .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                        // Uploads static files
+                        .requestMatchers("/uploads/**").permitAll()
+
+                        // Super Admin platform management endpoints
+                        .requestMatchers("/api/admin/**").hasRole("SUPER_ADMIN")
+
+                        // Teacher CMS endpoints (courses, lessons, media, problems, quizzes)
+                        .requestMatchers("/api/teacher/**").hasAnyRole("TEACHER", "SUPER_ADMIN")
 
                         // All other endpoints require authentication
                         .anyRequest().authenticated()

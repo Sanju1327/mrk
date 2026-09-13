@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -9,10 +9,10 @@ import {
   ArrowRight,
   Code2,
   Percent,
+  Play,
 } from 'lucide-react';
 import { problemApi } from '@/lib/problem-api';
 import type { Difficulty, ProblemSummary } from '@/types/problem';
-import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,7 +25,17 @@ const difficultyBadgeVariant: Record<Difficulty, 'easy' | 'medium' | 'hard'> = {
 
 export const ProblemListPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedDifficulty, setSelectedDifficulty] = useState<string>('ALL');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'SOLVED' | 'UNSOLVED'>('ALL');
+
+  // Debounce search input by 350ms to prevent query spam
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchTerm.trim());
+    }, 350);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
 
   // Daily Challenge Query
   const { data: dailyProblem } = useQuery({
@@ -35,186 +45,226 @@ export const ProblemListPage: React.FC = () => {
 
   // Problem Catalog Query
   const { data: problemsPage, isLoading, error } = useQuery({
-    queryKey: ['problems', selectedDifficulty, searchTerm],
+    queryKey: ['problems', selectedDifficulty, debouncedSearch],
     queryFn: () =>
       problemApi.getProblems({
         difficulty: selectedDifficulty !== 'ALL' ? (selectedDifficulty as Difficulty) : undefined,
-        search: searchTerm.trim() || undefined,
+        search: debouncedSearch || undefined,
         size: 50,
       }),
   });
 
-  const problems = problemsPage?.content || [];
+  const rawProblems = problemsPage?.content || [];
+  const problems = rawProblems.filter((p: ProblemSummary) => {
+    if (statusFilter === 'SOLVED') return p.solvedByUser;
+    if (statusFilter === 'UNSOLVED') return !p.solvedByUser;
+    return true;
+  });
+
+  // Format daily problem description preview by stripping raw markdown symbols
+  const cleanDailyDescription = dailyProblem?.description
+    ? dailyProblem.description.replace(/[#*`_]/g, '').trim()
+    : '';
 
   return (
-    <div className="container max-w-screen-2xl px-4 py-10 space-y-10">
-      {/* Header Banner */}
-      <div className="space-y-3 text-center max-w-2xl mx-auto">
-        <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/10 px-3.5 py-1.5 text-xs font-semibold text-primary">
-          <Terminal className="h-3.5 w-3.5" />
-          <span>Java 21 Problem Archive</span>
+    <div className="container max-w-screen-2xl px-4 sm:px-6 py-10 space-y-10">
+      {/* 1. Header Banner */}
+      <div className="max-w-3xl space-y-3">
+        <div className="inline-flex items-center gap-2 rounded-md border border-border bg-surface px-2.5 py-1 font-mono text-xs text-muted-foreground">
+          <Terminal className="h-3.5 w-3.5 text-foreground" />
+          <span>Algorithmic Problem Archive</span>
         </div>
-        <h1 className="text-4xl font-extrabold tracking-tight sm:text-5xl">
-          Algorithmic Coding Challenges
+        <h1 className="text-3xl font-semibold tracking-tight text-foreground sm:text-4xl">
+          Coding Challenges
         </h1>
-        <p className="text-muted-foreground text-base">
-          Solve real-world problems in an isolated Java sandbox. Test your solutions
-          against comprehensive test suites with sub-second execution watchdogs.
+        <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
+          Solve algorithmic exercises directly in Java 21 LTS with Monaco IDE. Verified against hidden boundary suites with sub-second execution watchdogs.
         </p>
       </div>
 
-      {/* Problem of the Day Spotlight */}
+      {/* 2. Problem of the Day Spotlight */}
       {dailyProblem && (
-        <Card className="border-amber-500/30 bg-gradient-to-r from-amber-500/10 via-card to-background p-6 md:p-8 shadow-lg">
+        <div className="rounded-lg border border-amber-500/30 bg-surface p-6 sm:p-7 space-y-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-2 max-w-2xl">
-              <div className="flex items-center gap-2.5">
-                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-500/20 text-amber-400">
-                  <Flame className="h-4 w-4 fill-current animate-pulse" />
+              <div className="flex items-center gap-3">
+                <div className="flex items-center gap-1.5 font-mono text-xs font-semibold uppercase tracking-wider text-amber-400">
+                  <Flame className="h-3.5 w-3.5 fill-current" />
+                  <span>Problem of the Day</span>
                 </div>
-                <span className="text-xs font-bold uppercase tracking-wider text-amber-400">
-                  Problem of the Day
-                </span>
                 <Badge variant={difficultyBadgeVariant[dailyProblem.difficulty]}>
                   {dailyProblem.difficulty}
                 </Badge>
               </div>
 
-              <h2 className="text-2xl font-bold tracking-tight">
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">
                 {dailyProblem.title}
               </h2>
 
-              <p className="text-sm text-muted-foreground line-clamp-2">
-                {dailyProblem.description}
+              <p className="text-xs sm:text-sm text-muted-foreground line-clamp-2 leading-relaxed font-sans">
+                {cleanDailyDescription}
               </p>
             </div>
 
             <Link to={`/problems/${dailyProblem.slug}`} className="shrink-0">
-              <Button className="gap-2 bg-amber-500 hover:bg-amber-600 text-black font-semibold shadow-md shadow-amber-500/20">
-                <Terminal className="h-4 w-4" />
-                <span>Solve Today&apos;s Challenge</span>
-                <ArrowRight className="h-4 w-4" />
+              <Button className="h-9 px-4 text-xs font-semibold bg-amber-400 text-zinc-950 hover:bg-amber-300 gap-2 font-mono">
+                <Play className="h-3.5 w-3.5 fill-current" />
+                <span>Solve Daily Problem</span>
               </Button>
             </Link>
           </div>
-        </Card>
+        </div>
       )}
 
-      {/* Filters and Search Bar */}
-      <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-        <div className="relative w-full sm:w-80">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      {/* 3. Controls: Filters & Search */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-4 border-b border-border pb-4">
+        {/* Difficulty & Status Tabs */}
+        <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+          {/* Difficulty options */}
+          <div className="flex items-center gap-1">
+            {['ALL', 'EASY', 'MEDIUM', 'HARD'].map((diff) => {
+              const isSelected = selectedDifficulty === diff;
+              return (
+                <button
+                  key={diff}
+                  onClick={() => setSelectedDifficulty(diff)}
+                  className={`px-3 py-1.5 rounded-md font-mono text-xs font-medium transition-colors ${
+                    isSelected
+                      ? 'bg-surface-raised text-foreground border border-border'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-surface'
+                  }`}
+                >
+                  {diff}
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="h-4 w-px bg-border hidden sm:block" />
+
+          {/* Status options */}
+          <div className="flex items-center gap-1">
+            {(['ALL', 'SOLVED', 'UNSOLVED'] as const).map((st) => (
+              <button
+                key={st}
+                onClick={() => setStatusFilter(st)}
+                className={`px-2.5 py-1 rounded text-xs font-mono transition-colors ${
+                  statusFilter === st
+                    ? 'text-foreground font-semibold bg-surface border border-border'
+                    : 'text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                {st.toLowerCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Search */}
+        <div className="relative w-full sm:w-72">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           <Input
-            placeholder="Search problems by title..."
-            className="pl-9"
+            placeholder="Search problems..."
+            className="pl-8 h-8 text-xs bg-surface border-border focus-visible:ring-1 focus-visible:ring-ring"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-
-        <div className="flex items-center gap-2 w-full sm:w-auto overflow-x-auto">
-          {['ALL', 'EASY', 'MEDIUM', 'HARD'].map((diff) => (
-            <Button
-              key={diff}
-              variant={selectedDifficulty === diff ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setSelectedDifficulty(diff)}
-              className="text-xs capitalize"
-            >
-              {diff.toLowerCase()}
-            </Button>
-          ))}
-        </div>
       </div>
 
-      {/* Problems Table / List */}
+      {/* 4. Problems Table */}
       {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="h-16 p-4 animate-pulse bg-card/40 border-border/40" />
+        <div className="rounded-lg border border-border bg-surface p-6 space-y-3 animate-pulse">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="h-10 w-full bg-border/60 rounded" />
           ))}
         </div>
       ) : error ? (
-        <div className="rounded-xl border border-destructive/30 bg-destructive/10 p-6 text-center text-destructive">
-          Failed to load coding problems. Please check your backend connection.
+        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-6 text-center text-xs font-mono text-destructive">
+          Failed to load coding problems. Please check backend connection.
         </div>
       ) : problems.length === 0 ? (
-        <div className="text-center py-16 space-y-3">
-          <Code2 className="h-12 w-12 mx-auto text-muted-foreground/50" />
-          <h3 className="text-lg font-medium">No problems found</h3>
-          <p className="text-sm text-muted-foreground">
+        <div className="text-center py-20 space-y-3">
+          <Code2 className="h-10 w-10 mx-auto text-muted-foreground/40" />
+          <h3 className="text-base font-medium text-foreground">No problems found</h3>
+          <p className="text-xs text-muted-foreground">
             Try adjusting your search criteria or difficulty filters.
           </p>
         </div>
       ) : (
-        <Card className="overflow-hidden border-border/60 bg-card/40 backdrop-blur-sm">
+        <div className="rounded-lg border border-border bg-surface overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-border/60 bg-muted/30 text-xs font-semibold uppercase text-muted-foreground">
+            <table className="w-full text-left text-xs font-sans">
+              <thead className="border-b border-border bg-surface-raised font-mono text-[11px] uppercase text-muted-foreground">
                 <tr>
-                  <th className="py-3.5 pl-6 pr-3 w-12">Status</th>
-                  <th className="py-3.5 px-3">Title</th>
-                  <th className="py-3.5 px-3">Difficulty</th>
-                  <th className="py-3.5 px-3">Topic</th>
-                  <th className="py-3.5 px-3">Acceptance</th>
-                  <th className="py-3.5 pl-3 pr-6 text-right">Action</th>
+                  <th className="py-3 pl-5 pr-3 w-12 text-center">Status</th>
+                  <th className="py-3 px-4">Title</th>
+                  <th className="py-3 px-4">Difficulty</th>
+                  <th className="py-3 px-4">Topic Track</th>
+                  <th className="py-3 px-4">Acceptance</th>
+                  <th className="py-3 pl-4 pr-5 text-right">Action</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-border/40">
+              <tbody className="divide-y divide-border/60">
                 {problems.map((problem: ProblemSummary) => (
                   <tr
                     key={problem.id}
-                    className="hover:bg-muted/20 transition-colors group"
+                    className="hover:bg-surface-raised/60 transition-colors group"
                   >
-                    <td className="py-4 pl-6 pr-3">
+                    {/* Solved Status */}
+                    <td className="py-3.5 pl-5 pr-3 text-center">
                       {problem.solvedByUser ? (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                        <CheckCircle2 className="h-4 w-4 text-emerald-400 mx-auto" />
                       ) : (
-                        <div className="h-3 w-3 rounded-full border-2 border-muted-foreground/30" />
+                        <div className="h-2 w-2 rounded-full bg-border mx-auto" />
                       )}
                     </td>
 
-                    <td className="py-4 px-3 font-medium">
+                    {/* Title */}
+                    <td className="py-3.5 px-4 font-medium">
                       <Link
                         to={`/problems/${problem.slug}`}
-                        className="text-foreground group-hover:text-primary transition-colors inline-flex items-center gap-2"
+                        className="text-foreground group-hover:text-foreground/90 transition-colors inline-flex items-center gap-2"
                       >
-                        <span>{problem.title}</span>
+                        <span className="font-medium text-sm">{problem.title}</span>
                         {problem.isDailyChallenge && (
-                          <Flame className="h-3.5 w-3.5 text-amber-400 fill-current" />
+                          <span title="Daily Challenge">
+                            <Flame className="h-3.5 w-3.5 text-amber-400 fill-current" />
+                          </span>
                         )}
                       </Link>
                     </td>
 
-                    <td className="py-4 px-3">
-                      <Badge
-                        variant={difficultyBadgeVariant[problem.difficulty]}
-                        className="text-xs"
-                      >
+                    {/* Difficulty */}
+                    <td className="py-3.5 px-4">
+                      <Badge variant={difficultyBadgeVariant[problem.difficulty]}>
                         {problem.difficulty}
                       </Badge>
                     </td>
 
-                    <td className="py-4 px-3 text-muted-foreground text-xs">
-                      {problem.topicTitle || 'General'}
+                    {/* Topic */}
+                    <td className="py-3.5 px-4 text-muted-foreground font-mono text-xs">
+                      {problem.topicTitle || 'Core Syntax'}
                     </td>
 
-                    <td className="py-4 px-3 text-xs text-muted-foreground">
+                    {/* Acceptance */}
+                    <td className="py-3.5 px-4 text-muted-foreground font-mono text-xs">
                       <div className="flex items-center gap-1">
-                        <Percent className="h-3 w-3 text-primary" />
+                        <Percent className="h-3 w-3 text-muted-foreground" />
                         <span>{problem.acceptanceRate}%</span>
                       </div>
                     </td>
 
-                    <td className="py-4 pl-3 pr-6 text-right">
+                    {/* Action */}
+                    <td className="py-3.5 pl-4 pr-5 text-right">
                       <Link to={`/problems/${problem.slug}`}>
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 text-xs gap-1 group-hover:bg-primary group-hover:text-primary-foreground transition-all"
+                          className="h-7 px-2.5 text-xs font-mono gap-1 text-muted-foreground hover:text-foreground group-hover:bg-surface-raised"
                         >
                           <span>Solve</span>
-                          <ArrowRight className="h-3.5 w-3.5" />
+                          <ArrowRight className="h-3 w-3" />
                         </Button>
                       </Link>
                     </td>
@@ -223,7 +273,7 @@ export const ProblemListPage: React.FC = () => {
               </tbody>
             </table>
           </div>
-        </Card>
+        </div>
       )}
     </div>
   );

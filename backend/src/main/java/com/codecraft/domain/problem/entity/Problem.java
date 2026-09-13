@@ -33,8 +33,24 @@ public class Problem {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "topic_id", nullable = false)
+    @JoinColumn(name = "topic_id")
     private Topic topic;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "course_id")
+    private com.codecraft.domain.course.entity.Course course;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "lesson_id")
+    private com.codecraft.domain.course.entity.Lesson lesson;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "created_by")
+    private com.codecraft.domain.user.entity.User createdBy;
+
+    @Column(name = "is_published", nullable = false)
+    @Builder.Default
+    private boolean published = true;
 
     @Column(nullable = false, length = 200)
     private String title;

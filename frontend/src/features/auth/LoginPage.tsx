@@ -3,10 +3,9 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { LogIn, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 
 const loginSchema = z.object({
@@ -53,16 +52,18 @@ export const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="container flex min-h-[calc(100vh-12rem)] items-center justify-center px-4">
-      <Card className="w-full max-w-md space-y-6 p-8 border-border/50 bg-card/50 backdrop-blur-sm">
-        <div className="space-y-2 text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-            <LogIn className="h-6 w-6" />
+    <div className="container flex min-h-[calc(100vh-10rem)] items-center justify-center px-4 py-8">
+      <div className="w-full max-w-sm space-y-6 p-7 sm:p-8 rounded-lg border border-border bg-surface">
+        <div className="space-y-3 text-center">
+          <Link to="/" className="inline-block transition-transform hover:scale-105">
+            <img src="/logo.png" alt="CodeCraft Logo" className="h-16 mx-auto object-contain drop-shadow-md" />
+          </Link>
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Sign In</h1>
+            <p className="text-xs text-muted-foreground font-mono">
+              Enter your credentials to access your workspaces
+            </p>
           </div>
-          <h1 className="text-2xl font-bold tracking-tight">Welcome Back</h1>
-          <p className="text-sm text-muted-foreground">
-            Sign in to continue your coding journey
-          </p>
         </div>
 
         {error && (
@@ -72,7 +73,7 @@ export const LoginPage: React.FC = () => {
           </div>
         )}
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" autoComplete="off">
           <div className="space-y-2">
             <label htmlFor="usernameOrEmail" className="text-sm font-medium">
               Username or Email
@@ -126,13 +127,13 @@ export const LoginPage: React.FC = () => {
           </Button>
         </form>
 
-        <p className="text-center text-sm text-muted-foreground">
+        <p className="text-center text-xs text-muted-foreground font-mono">
           Don&apos;t have an account?{' '}
-          <Link to="/register" className="font-medium text-primary hover:underline">
+          <Link to="/register" className="font-semibold text-foreground underline underline-offset-4 hover:opacity-80">
             Create one
           </Link>
         </p>
-      </Card>
+      </div>
     </div>
   );
 };

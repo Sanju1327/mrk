@@ -28,4 +28,11 @@ public class TopicDetailDto {
                 .lessons(lessons)
                 .build();
     }
+
+    public static TopicDetailDto fromEntity(Topic topic) {
+        List<LessonSummaryDto> lessonDtos = topic.getLessons() != null ?
+                topic.getLessons().stream().map(l -> LessonSummaryDto.fromEntity(l, false)).toList() :
+                java.util.Collections.emptyList();
+        return fromEntity(topic, lessonDtos);
+    }
 }

@@ -30,6 +30,9 @@ public class ProblemService {
     private final ProblemRepository problemRepository;
     private final TestCaseRepository testCaseRepository;
     private final SubmissionRepository submissionRepository;
+    private final com.codecraft.domain.course.repository.TopicRepository topicRepository;
+    private final com.codecraft.domain.course.repository.CourseRepository courseRepository;
+    private final com.codecraft.domain.course.repository.LessonRepository lessonRepository;
 
     @Transactional(readOnly = true)
     public Page<ProblemSummaryDto> getProblems(
@@ -98,6 +101,66 @@ public class ProblemService {
                 totalSubmissions,
                 sampleTestCaseDtos
         );
+    }
+
+    @Transactional
+    public ProblemDetailDto createProblem(com.codecraft.domain.problem.dto.CreateProblemRequest request, com.codecraft.domain.user.entity.User teacher) {
+        if (problemRepository.existsBySlug(request.getSlug())) {
+            throw new com.codecraft.common.exception.ConflictException("Problem slug '" + request.getSlug() + "' is already in use");
+        }
+
+        com.codecraft.domain.course.entity.Topic topic = null;
+        if (request.getTopicId() != null) {
+            topic = topicRepository.findById(request.getTopicId()).orElse(null);
+        }
+
+        com.codecraft.domain.course.entity.Course course = null;
+        if (request.getCourseId() != null) {
+            course = courseRepository.findById(request.getCourseId()).orElse(null);
+        }
+
+        com.codecraft.domain.course.entity.Lesson lesson = null;
+        if (request.getLessonId() != null) {
+            lesson = lessonRepository.findById(request.getLessonId()).orElse(null);
+        }
+
+        Problem problem = Problem.builder()
+                .title(request.getTitle())
+                .slug(request.getSlug())
+                .description(request.getDescription())
+                .constraints(request.getConstraints())
+                .difficulty(request.getDifficulty())
+                .supportedLanguage(request.getSupportedLanguage())
+                .timeLimitMs(request.getTimeLimitMs())
+                .memoryLimitMb(request.getMemoryLimitMb())
+                .starterCode(request.getStarterCode())
+                .explanation(request.getExplanation())
+                .topic(topic)
+                .course(course)
+                .lesson(lesson)
+                .createdBy(teacher)
+                .published(true)
+                .build();
+
+        if (request.getTestCases() != null) {
+            int order = 1;
+            for (com.codecraft.domain.problem.dto.CreateProblemRequest.TestCaseInputDto tcDto : request.getTestCases()) {
+                TestCase tc = TestCase.builder()
+                        .problem(problem)
+                        .inputData(tcDto.getInputData())
+                        .expectedOutput(tcDto.getExpectedOutput())
+                        .sample(tcDto.isSample())
+                        .hidden(tcDto.isHidden())
+                        .explanation(tcDto.getExplanation())
+                        .displayOrder(tcDto.getDisplayOrder() > 0 ? tcDto.getDisplayOrder() : order++)
+                        .build();
+                problem.getTestCases().add(tc);
+            }
+        }
+
+        Problem saved = problemRepository.save(problem);
+        log.info("Teacher {} created problem: {} (id={})", teacher.getUsername(), saved.getTitle(), saved.getId());
+        return buildProblemDetail(saved, teacher.getId());
     }
 
     private double calculateAcceptanceRate(Problem problem) {

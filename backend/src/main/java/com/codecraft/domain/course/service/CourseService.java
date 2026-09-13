@@ -60,6 +60,7 @@ public class CourseService {
     public CourseDetailDto getCourseBySlug(String slug, Long userId) {
         Course course = courseRepository.findBySlug(slug)
                 .orElseThrow(() -> new ResourceNotFoundException("Course", "slug", slug));
+        checkPublishedAccess(course, userId);
         return buildCourseDetail(course, userId);
     }
 
@@ -67,7 +68,26 @@ public class CourseService {
     public CourseDetailDto getCourseById(Long id, Long userId) {
         Course course = courseRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Course", "id", id));
+        checkPublishedAccess(course, userId);
         return buildCourseDetail(course, userId);
+    }
+
+    private void checkPublishedAccess(Course course, Long userId) {
+        if (!course.isPublished()) {
+            boolean isAuthorized = false;
+            if (userId != null) {
+                User user = userRepository.findById(userId).orElse(null);
+                if (user != null) {
+                    boolean isSuperAdmin = user.getRoles().stream()
+                            .anyMatch(r -> "ROLE_SUPER_ADMIN".equals(r.getName()));
+                    boolean isTeacher = course.getTeacher() != null && course.getTeacher().getId().equals(user.getId());
+                    isAuthorized = isSuperAdmin || isTeacher;
+                }
+            }
+            if (!isAuthorized) {
+                throw new ResourceNotFoundException("Course not found or unpublished");
+            }
+        }
     }
 
     @Transactional(readOnly = true)

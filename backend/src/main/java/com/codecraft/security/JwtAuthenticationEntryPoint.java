@@ -28,6 +28,8 @@ public class JwtAuthenticationEntryPoint implements AuthenticationEntryPoint {
                          AuthenticationException authException) throws IOException {
         log.warn("Unauthorized error at URI {}: {}", request.getRequestURI(), authException.getMessage());
 
+        // Explicitly set Bearer error header to prevent browser from showing Basic Auth credential prompt
+        response.setHeader("WWW-Authenticate", "Bearer error=\"unauthorized\", error_description=\"" + authException.getMessage() + "\"");
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 

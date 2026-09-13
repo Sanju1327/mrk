@@ -1,12 +1,12 @@
 import React from 'react';
-import { Code2, Github, Terminal } from 'lucide-react';
+import { Github, Terminal } from 'lucide-react';
 
 export const Footer: React.FC = () => {
   return (
     <footer className="border-t border-border/40 bg-background/50 py-8 text-sm text-muted-foreground">
       <div className="container max-w-screen-2xl flex flex-col md:flex-row items-center justify-between gap-4 px-4">
-        <div className="flex items-center gap-2">
-          <Code2 className="h-4 w-4 text-primary" />
+        <div className="flex items-center gap-2.5">
+          <img src="/favicon.png" alt="CodeCraft" className="h-5 w-5 rounded object-contain" />
           <span className="font-semibold text-foreground">CodeCraft</span>
           <span>&copy; {new Date().getFullYear()} — Enterprise Java & Full-Stack Learning Platform</span>
         </div>

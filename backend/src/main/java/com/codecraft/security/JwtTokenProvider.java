@@ -23,9 +23,17 @@ public class JwtTokenProvider {
     private final AppProperties appProperties;
 
     private SecretKey getSigningKey() {
-        byte[] keyBytes = Decoders.BASE64.decode(
-                java.util.Base64.getEncoder().encodeToString(appProperties.getJwt().getSecret().getBytes())
-        );
+        String secret = appProperties.getJwt().getSecret();
+        if (secret == null || secret.trim().isEmpty()) {
+            throw new IllegalStateException("JWT secret configuration is missing or empty");
+        }
+        byte[] keyBytes = secret.getBytes(java.nio.charset.StandardCharsets.UTF_8);
+        if (keyBytes.length < 32) {
+            // Guarantee minimum 256-bit key length for HMAC-SHA256
+            byte[] padded = new byte[32];
+            System.arraycopy(keyBytes, 0, padded, 0, keyBytes.length);
+            keyBytes = padded;
+        }
         return Keys.hmacShaKeyFor(keyBytes);
     }
 

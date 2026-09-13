@@ -9,22 +9,16 @@ import {
   Play,
   ChevronDown,
   ChevronRight,
-  Sparkles,
   ArrowLeft,
+  Layers,
+  Sparkles,
   GraduationCap,
 } from 'lucide-react';
 import { courseApi } from '@/lib/course-api';
 import { useAuth } from '@/hooks/useAuth';
-import type { CourseLevel, TopicDetail, LessonSummary } from '@/types/course';
-import { Card } from '@/components/ui/card';
+import type { TopicDetail, LessonSummary } from '@/types/course';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-
-const levelBadgeColor: Record<CourseLevel, string> = {
-  BEGINNER: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30',
-  INTERMEDIATE: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
-  ADVANCED: 'bg-rose-500/10 text-rose-400 border-rose-500/30',
-};
 
 export const CourseDetailPage: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -50,7 +44,7 @@ export const CourseDetailPage: React.FC = () => {
   const toggleTopic = (topicId: number) => {
     setExpandedTopics((prev) => ({
       ...prev,
-      [topicId]: prev[topicId] === undefined ? false : !prev[topicId],
+      [topicId]: !(prev[topicId] ?? true),
     }));
   };
 
@@ -66,22 +60,24 @@ export const CourseDetailPage: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="container max-w-5xl px-4 py-16 space-y-6 animate-pulse">
-        <div className="h-6 w-32 bg-muted rounded" />
-        <div className="h-10 w-2/3 bg-muted rounded" />
-        <div className="h-20 w-full bg-muted rounded" />
-        <div className="h-64 w-full bg-muted rounded" />
+      <div className="container max-w-screen-2xl px-4 sm:px-6 py-12 space-y-6 animate-pulse">
+        <div className="h-5 w-32 bg-border rounded" />
+        <div className="h-10 w-2/3 bg-border rounded" />
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          <div className="lg:col-span-8 h-96 bg-surface rounded-lg" />
+          <div className="lg:col-span-4 h-64 bg-surface rounded-lg" />
+        </div>
       </div>
     );
   }
 
   if (error || !course) {
     return (
-      <div className="container max-w-md mx-auto px-4 py-20 text-center space-y-4">
-        <h2 className="text-2xl font-bold">Course Not Found</h2>
-        <p className="text-muted-foreground">The requested course could not be loaded.</p>
+      <div className="container max-w-md mx-auto px-4 py-24 text-center space-y-4">
+        <h2 className="text-xl font-semibold text-foreground">Course Not Found</h2>
+        <p className="text-xs text-muted-foreground">The requested curriculum does not exist or could not be loaded.</p>
         <Link to="/courses">
-          <Button variant="outline">Back to Catalog</Button>
+          <Button variant="outline" size="sm">Back to Course Catalog</Button>
         </Link>
       </div>
     );
@@ -101,181 +97,253 @@ export const CourseDetailPage: React.FC = () => {
   const targetLessonId = firstIncompleteLessonId || firstLessonId;
 
   return (
-    <div className="container max-w-5xl px-4 py-10 space-y-8">
+    <div className="container max-w-screen-2xl px-4 sm:px-6 py-10 space-y-8">
       {/* Back Link */}
-      <Link
-        to="/courses"
-        className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        <span>Back to all courses</span>
-      </Link>
+      <div>
+        <Link
+          to="/courses"
+          className="inline-flex items-center gap-1.5 text-xs font-mono text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          <span>All Courses</span>
+        </Link>
+      </div>
 
-      {/* Course Hero Card */}
-      <Card className="p-8 border-border/50 bg-gradient-to-br from-card/80 to-card/40 backdrop-blur-sm space-y-6">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-3 max-w-2xl">
+      {/* Main Split Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+        {/* Left Column: Course Overview & Syllabus Tree (8 cols) */}
+        <div className="lg:col-span-8 space-y-10">
+          {/* Header */}
+          <div className="space-y-4 border-b border-border pb-8">
             <div className="flex items-center gap-3">
               <Badge
-                variant="outline"
-                className={`text-xs font-semibold ${levelBadgeColor[course.level]}`}
+                variant={
+                  course.level === 'BEGINNER'
+                    ? 'easy'
+                    : course.level === 'INTERMEDIATE'
+                    ? 'medium'
+                    : 'hard'
+                }
               >
                 {course.level}
               </Badge>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Clock className="h-3.5 w-3.5" />
-                <span>~{course.estimatedHours} hours to complete</span>
+              <div className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
+                <Clock className="h-3 w-3" />
+                <span>~{course.estimatedHours} hours self-paced</span>
               </div>
             </div>
 
-            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight">
+            <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground">
               {course.title}
             </h1>
 
-            <p className="text-base text-muted-foreground leading-relaxed">
+            <p className="text-sm sm:text-base text-muted-foreground leading-relaxed">
               {course.description}
             </p>
+
+            <div className="flex flex-wrap items-center gap-6 pt-2 font-mono text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5">
+                <Layers className="h-3.5 w-3.5 text-foreground" />
+                <span>{course.topics.length} Modules</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <BookOpen className="h-3.5 w-3.5 text-foreground" />
+                <span>{course.totalLessons} Lessons</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                <span>Hands-on Code Verifications</span>
+              </div>
+            </div>
           </div>
 
-          {/* Action Box */}
-          <div className="w-full md:w-64 shrink-0 rounded-xl border border-border/60 bg-background/50 p-5 space-y-4 text-center">
-            {course.isEnrolled ? (
-              <>
-                <div className="space-y-1.5">
-                  <div className="flex justify-between text-xs font-medium">
-                    <span className="text-muted-foreground">Progress</span>
-                    <span className="text-primary font-bold">{course.progressPercentage}%</span>
+          {/* Syllabus Section */}
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold tracking-tight text-foreground">Curriculum Syllabus</h2>
+              <span className="font-mono text-xs text-muted-foreground">
+                {course.topics.length} modules &bull; {course.totalLessons} lessons
+              </span>
+            </div>
+
+            <div className="space-y-3">
+              {course.topics.map((topic: TopicDetail, index: number) => {
+                const isExpanded = expandedTopics[topic.id] !== false;
+                const topicCompletedCount = topic.lessons.filter((l) => l.completed).length;
+
+                return (
+                  <div
+                    key={topic.id}
+                    className="rounded-lg border border-border bg-surface overflow-hidden transition-colors"
+                  >
+                    <button
+                      type="button"
+                      onClick={() => toggleTopic(topic.id)}
+                      className="w-full flex items-center justify-between p-4 sm:p-5 text-left hover:bg-surface-raised transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded border border-border bg-background font-mono text-xs font-semibold text-muted-foreground">
+                          {index + 1}
+                        </span>
+                        <div>
+                          <h3 className="font-medium text-sm text-foreground">{topic.title}</h3>
+                          {topic.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                              {topic.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-4 text-xs font-mono text-muted-foreground">
+                        <span className="hidden sm:inline">
+                          {topicCompletedCount}/{topic.lessons.length} done
+                        </span>
+                        {isExpanded ? (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
+                    </button>
+
+                    {isExpanded && (
+                      <div className="border-t border-border/80 divide-y divide-border/60 bg-background/50">
+                        {topic.lessons.map((lesson: LessonSummary) => (
+                          <div
+                            key={lesson.id}
+                            className="flex items-center justify-between px-5 sm:px-6 py-3 hover:bg-surface transition-colors text-xs"
+                          >
+                            <div className="flex items-center gap-3">
+                              {lesson.completed ? (
+                                <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400 shrink-0" />
+                              ) : (
+                                <div className="h-2 w-2 rounded-full border border-border shrink-0 ml-0.5" />
+                              )}
+                              <span className={lesson.completed ? 'text-muted-foreground line-through' : 'text-foreground font-medium'}>
+                                {lesson.title}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-3 font-mono text-muted-foreground">
+                              <span>{lesson.estimatedMinutes}m</span>
+                              {course.isEnrolled ? (
+                                <Link to={`/lessons/${lesson.id}`}>
+                                  <Button variant="ghost" size="sm" className="h-7 px-2 text-xs gap-1 text-foreground hover:bg-surface-raised">
+                                    <span>{lesson.completed ? 'Review' : 'Start'}</span>
+                                    <Play className="h-2.5 w-2.5 fill-current" />
+                                  </Button>
+                                </Link>
+                              ) : (
+                                <Lock className="h-3 w-3 text-muted-foreground/40" />
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <div className="h-2 w-full rounded-full bg-secondary overflow-hidden">
+                );
+              })}
+            </div>
+          </div>
+        </div>
+
+        {/* Right Column: Sticky Enrollment & Progress Card (4 cols) */}
+        <div className="lg:col-span-4 sticky top-20 space-y-6">
+          <div className="rounded-lg border border-border bg-surface p-6 space-y-6">
+            <div className="space-y-2">
+              <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                Curriculum Access
+              </span>
+              <div className="text-xl font-semibold text-foreground">
+                {course.isEnrolled ? 'Enrolled Track' : 'Open Curriculum'}
+              </div>
+            </div>
+
+            {course.isEnrolled ? (
+              <div className="space-y-4 pt-2 border-t border-border">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-xs font-mono">
+                    <span className="text-muted-foreground">Overall Progress</span>
+                    <span className="text-foreground font-semibold">{course.progressPercentage}%</span>
+                  </div>
+                  <div className="h-1.5 w-full rounded-full bg-border overflow-hidden">
                     <div
-                      className="h-full bg-primary transition-all duration-300"
+                      className="h-full bg-emerald-400 rounded-full transition-all duration-300"
                       style={{ width: `${course.progressPercentage}%` }}
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground pt-1">
+                  <div className="text-[11px] font-mono text-muted-foreground">
                     {course.completedLessons} of {course.totalLessons} lessons completed
-                  </p>
+                  </div>
                 </div>
 
                 {targetLessonId && (
                   <Link to={`/lessons/${targetLessonId}`} className="block">
-                    <Button className="w-full gap-2">
-                      <Play className="h-4 w-4 fill-current" />
-                      <span>Continue Learning</span>
+                    <Button className="w-full h-10 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 gap-2">
+                      <Play className="h-3.5 w-3.5 fill-current" />
+                      <span>{course.progressPercentage > 0 ? 'Resume Learning' : 'Start Curriculum'}</span>
                     </Button>
                   </Link>
                 )}
-              </>
+              </div>
             ) : (
-              <>
-                <div className="space-y-1">
-                  <p className="text-xs text-muted-foreground">Free Lifetime Access</p>
-                  <p className="text-2xl font-bold text-foreground">100% Free</p>
-                </div>
+              <div className="space-y-4 pt-2 border-t border-border">
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  Enroll to track your progress, complete interactive lessons, and verify your code solutions in real-time.
+                </p>
                 <Button
                   onClick={handleEnrollClick}
                   disabled={enrollMutation.isPending}
-                  className="w-full gap-2 bg-primary hover:bg-primary/90"
+                  className="w-full h-10 text-xs font-semibold bg-primary text-primary-foreground hover:bg-primary/90 gap-2"
                 >
-                  <Sparkles className="h-4 w-4" />
-                  <span>{enrollMutation.isPending ? 'Enrolling...' : 'Enroll Now'}</span>
+                  <Sparkles className="h-3.5 w-3.5" />
+                  <span>{enrollMutation.isPending ? 'Enrolling...' : 'Enroll in Track'}</span>
                 </Button>
-              </>
+              </div>
+            )}
+
+            {/* Quick Curriculum Specs */}
+            <div className="border-t border-border pt-4 space-y-2.5 font-mono text-xs text-muted-foreground">
+              <div className="flex justify-between">
+                <span>Category:</span>
+                <span className="text-foreground font-sans">{course.category || 'General'}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Estimated Pace:</span>
+                <span className="text-foreground font-sans">{course.estimatedDuration || `${course.estimatedHours}h self-paced`}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Assessments:</span>
+                <span className="text-foreground font-sans">Interactive Quizzes & Challenges</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Instructor Attribution Card */}
+          <div className="rounded-lg border border-border bg-surface p-6 space-y-3 font-sans">
+            <div className="flex items-center gap-2 font-mono text-xs text-purple-400">
+              <GraduationCap className="h-4 w-4" />
+              <span className="uppercase tracking-wider font-semibold">Course Instructor</span>
+            </div>
+            <div className="flex items-center gap-3 pt-1">
+              <div className="h-10 w-10 rounded-full bg-purple-500/20 text-purple-400 border border-purple-500/30 flex items-center justify-center font-bold text-sm">
+                {(course.instructor?.fullName || 'CodeCraft').charAt(0)}
+              </div>
+              <div>
+                <h4 className="font-semibold text-foreground text-sm">
+                  {course.instructor?.fullName || 'CodeCraft Faculty'}
+                </h4>
+                <p className="text-[11px] text-muted-foreground font-mono">Curriculum Lead</p>
+              </div>
+            </div>
+            {course.instructor?.bio && (
+              <p className="text-xs text-muted-foreground leading-relaxed pt-1">
+                {course.instructor.bio}
+              </p>
             )}
           </div>
-        </div>
-      </Card>
-
-      {/* Syllabus Tree */}
-      <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <GraduationCap className="h-5 w-5 text-primary" />
-            <h2 className="text-2xl font-bold tracking-tight">Course Syllabus</h2>
-          </div>
-          <span className="text-sm text-muted-foreground">
-            {course.topics.length} Topics • {course.totalLessons} Lessons
-          </span>
-        </div>
-
-        <div className="space-y-3">
-          {course.topics.map((topic: TopicDetail, index: number) => {
-            const isExpanded = expandedTopics[topic.id] !== false; // default expanded
-            const topicCompletedLessons = topic.lessons.filter((l) => l.completed).length;
-
-            return (
-              <Card key={topic.id} className="overflow-hidden border-border/50 bg-card/40">
-                <button
-                  type="button"
-                  onClick={() => toggleTopic(topic.id)}
-                  className="w-full flex items-center justify-between p-5 text-left hover:bg-muted/30 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-xs font-semibold text-primary">
-                      {index + 1}
-                    </div>
-                    <div>
-                      <h3 className="font-semibold text-base">{topic.title}</h3>
-                      {topic.description && (
-                        <p className="text-xs text-muted-foreground line-clamp-1">
-                          {topic.description}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground">
-                    <span>
-                      {topicCompletedLessons}/{topic.lessons.length} completed
-                    </span>
-                    {isExpanded ? (
-                      <ChevronDown className="h-4 w-4" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4" />
-                    )}
-                  </div>
-                </button>
-
-                {isExpanded && (
-                  <div className="border-t border-border/40 divide-y divide-border/30 bg-background/30">
-                    {topic.lessons.map((lesson: LessonSummary) => (
-                      <div
-                        key={lesson.id}
-                        className="flex items-center justify-between px-6 py-3.5 hover:bg-muted/20 transition-colors text-sm"
-                      >
-                        <div className="flex items-center gap-3">
-                          {lesson.completed ? (
-                            <CheckCircle2 className="h-4 w-4 text-emerald-400 shrink-0" />
-                          ) : (
-                            <BookOpen className="h-4 w-4 text-muted-foreground shrink-0" />
-                          )}
-                          <span className={lesson.completed ? 'text-muted-foreground line-through' : 'font-medium'}>
-                            {lesson.title}
-                          </span>
-                        </div>
-
-                        <div className="flex items-center gap-3">
-                          <span className="text-xs text-muted-foreground">
-                            {lesson.estimatedMinutes} min
-                          </span>
-                          {course.isEnrolled ? (
-                            <Link to={`/lessons/${lesson.id}`}>
-                              <Button variant="ghost" size="sm" className="h-8 text-xs gap-1">
-                                <span>{lesson.completed ? 'Review' : 'Start'}</span>
-                                <Play className="h-3 w-3" />
-                              </Button>
-                            </Link>
-                          ) : (
-                            <Lock className="h-3.5 w-3.5 text-muted-foreground/50" />
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </Card>
-            );
-          })}
         </div>
       </div>
     </div>

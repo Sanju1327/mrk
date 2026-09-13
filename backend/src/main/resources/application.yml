@@ -52,6 +52,12 @@ app:
     provider: ${SANDBOX_PROVIDER:LOCAL} # Options: LOCAL | DOCKER
     default-timeout-ms: ${EXECUTION_TIMEOUT_MS:2000}
     default-memory-limit-mb: ${MEMORY_LIMIT_MB:256}
+  bootstrap:
+    super-admin:
+      email: ${SUPER_ADMIN_EMAIL:Sanju@gmail.com}
+      password: ${SUPER_ADMIN_PASSWORD:}
+      username: ${SUPER_ADMIN_USERNAME:SanjuAdmin}
+      full-name: ${SUPER_ADMIN_FULLNAME:Sanju Kumar}
 
 # ==========================================
 # Springdoc / OpenAPI Configuration

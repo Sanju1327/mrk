@@ -4,34 +4,34 @@
 
 @layer base {
   :root {
-    --background: 224 71% 4%;
-    --foreground: 213 31% 91%;
+    /* Obsidian & Precision Slate Theme */
+    --background: 220 14% 5%; /* #0b0c0e - warm carbon */
+    --foreground: 210 20% 96%; /* #f1f5f9 - clear, non-glare text */
 
-    --muted: 223 47% 11%;
-    --muted-foreground: 215.4 16.3% 56.9%;
+    --card: 220 12% 8%; /* #111317 */
+    --card-foreground: 210 20% 96%;
 
-    --popover: 224 71% 4%;
-    --popover-foreground: 215 20.2% 65.1%;
+    --popover: 220 14% 11%; /* #171a21 */
+    --popover-foreground: 210 20% 96%;
 
-    --card: 224 71% 4%;
-    --card-foreground: 213 31% 91%;
+    --primary: 210 20% 98%; /* #f8fafc - high contrast primary CTA */
+    --primary-foreground: 220 16% 8%; /* #111317 */
 
-    --border: 216 34% 17%;
-    --input: 216 34% 17%;
+    --secondary: 220 12% 14%; /* #1f232b */
+    --secondary-foreground: 210 20% 94%;
 
-    --primary: 210 100% 52%;
-    --primary-foreground: 222.2 47.4% 11.2%;
+    --muted: 220 12% 11%; /* #15181f */
+    --muted-foreground: 215 14% 60%; /* #94a3b8 */
 
-    --secondary: 222.2 47.4% 11.2%;
-    --secondary-foreground: 210 40% 98%;
+    --accent: 220 12% 15%; /* #222631 */
+    --accent-foreground: 210 20% 98%;
 
-    --accent: 216 34% 17%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 63% 31%;
+    --destructive: 347 77% 50%; /* #e11d48 */
     --destructive-foreground: 210 40% 98%;
 
-    --ring: 216 34% 17%;
+    --border: 220 12% 14%; /* #1c2029 - crisp 1px borders */
+    --input: 220 12% 14%;
+    --ring: 212 96% 68%; /* #60a5fa - focus ring */
 
     --radius: 0.5rem;
   }
@@ -42,7 +42,23 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1;
+    @apply bg-background text-foreground antialiased selection:bg-blue-500/20 selection:text-blue-200;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+
+  /* Refined scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: hsl(220 12% 20%);
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(220 12% 30%);
   }
 }

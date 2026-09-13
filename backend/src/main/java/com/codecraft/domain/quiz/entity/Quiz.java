@@ -29,8 +29,12 @@ public class Quiz {
     private Long id;
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "topic_id", nullable = false)
+    @JoinColumn(name = "topic_id")
     private Topic topic;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "lesson_id")
+    private com.codecraft.domain.course.entity.Lesson lesson;
 
     @Column(nullable = false, length = 150)
     private String title;

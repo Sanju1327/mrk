@@ -44,6 +44,26 @@ public class Course {
     @Builder.Default
     private CourseLevel level = CourseLevel.BEGINNER;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "teacher_id")
+    private com.codecraft.domain.user.entity.User teacher;
+
+    @Column(nullable = false, length = 100)
+    @Builder.Default
+    private String category = "Programming";
+
+    @Column(name = "estimated_duration", nullable = false, length = 50)
+    @Builder.Default
+    private String estimatedDuration = "4 weeks";
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    @Builder.Default
+    private CourseStatus status = CourseStatus.DRAFT;
+
+    @Column(name = "published_at")
+    private LocalDateTime publishedAt;
+
     @Column(name = "is_published", nullable = false)
     @Builder.Default
     private boolean published = false;
@@ -56,6 +76,10 @@ public class Course {
     @OrderBy("displayOrder ASC")
     @Builder.Default
     private List<Topic> topics = new ArrayList<>();
+
+    @OneToMany(mappedBy = "course", cascade = CascadeType.ALL, orphanRemoval = true)
+    @Builder.Default
+    private List<CourseResource> resources = new ArrayList<>();
 
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
