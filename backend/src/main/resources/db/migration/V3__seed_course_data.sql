@@ -5,13 +5,13 @@
 -- 1. Insert Course
 INSERT INTO courses (id, title, slug, description, icon_url, level, is_published, display_order, created_at, updated_at) VALUES
 (1, 'Java Foundations & Object-Oriented Programming', 'java-foundations', 'Master modern Java 21 syntax, memory management, object-oriented design, data structures, and algorithmic problem solving.', 'code-2', 'BEGINNER', TRUE, 1, NOW(), NOW())
-ON DUPLICATE KEY UPDATE title=VALUES(title);
+ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title;
 
 -- 2. Insert Topics for Course 1
 INSERT INTO topics (id, course_id, title, slug, description, display_order, created_at, updated_at) VALUES
 (1, 1, 'Java Syntax, Variables & Control Flow', 'java-basics', 'Core fundamentals: JDK, primitive data types, conditionals, loops, and standard I/O.', 1, NOW(), NOW()),
 (2, 1, 'Arrays, Strings & Memory Mechanics', 'arrays-and-strings', 'Working with sequential memory structures, immutable strings, and algorithmic operations.', 2, NOW(), NOW())
-ON DUPLICATE KEY UPDATE title=VALUES(title);
+ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title;
 
 -- 3. Insert Lessons
 INSERT INTO lessons (id, topic_id, title, slug, content_markdown, estimated_minutes, display_order, created_at, updated_at) VALUES
@@ -86,7 +86,7 @@ int len = initialized.length; // 4
 - Search (Unsorted): $O(n)$
 - Insertion/Deletion: $O(n)$ (shifting elements)
 ', 15, 1, NOW(), NOW())
-ON DUPLICATE KEY UPDATE title=VALUES(title);
+ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title;
 
 -- 4. Insert Coding Problems
 INSERT INTO problems (id, topic_id, title, slug, description, constraints, difficulty, supported_language, time_limit_ms, memory_limit_mb, starter_code, explanation, is_daily_challenge, created_at, updated_at) VALUES
@@ -148,7 +148,7 @@ public class Solution {
 }',
 'Iterate from 1 to n. Check if i % 15 == 0 first, then i % 3 == 0, then i % 5 == 0, else convert to string.',
 FALSE, NOW(), NOW())
-ON DUPLICATE KEY UPDATE title=VALUES(title);
+ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title;
 
 -- 5. Insert Test Cases for Problems
 -- Test Cases for Problem 1 (Two Sum)
@@ -157,33 +157,33 @@ INSERT INTO test_cases (id, problem_id, input_data, expected_output, is_sample, 
 (2, 1, '[3,2,4]\n6', '[1,2]', TRUE, FALSE, 'nums[1] + nums[2] == 2 + 4 == 6, so return [1, 2].', 2),
 (3, 1, '[3,3]\n6', '[0,1]', FALSE, TRUE, 'Hidden edge case with duplicate values.', 3),
 (4, 1, '[-1,-2,-3,-4,-5]\n-8', '[2,4]', FALSE, TRUE, 'Hidden case with negative integers.', 4)
-ON DUPLICATE KEY UPDATE input_data=VALUES(input_data);
+ON CONFLICT (id) DO UPDATE SET input_data = EXCLUDED.input_data;
 
 -- Test Cases for Problem 2 (Valid Palindrome)
 INSERT INTO test_cases (id, problem_id, input_data, expected_output, is_sample, is_hidden, explanation, display_order) VALUES
 (5, 2, '"A man, a plan, a canal: Panama"', 'true', TRUE, FALSE, '"amanaplanacanalpanama" is a palindrome.', 1),
 (6, 2, '"race a car"', 'false', TRUE, FALSE, '"raceacar" is not a palindrome.', 2),
 (7, 2, '" "', 'true', FALSE, TRUE, 'Empty or whitespace string is palindrome after removing non-alphanumeric chars.', 3)
-ON DUPLICATE KEY UPDATE input_data=VALUES(input_data);
+ON CONFLICT (id) DO UPDATE SET input_data = EXCLUDED.input_data;
 
 -- Test Cases for Problem 3 (FizzBuzz)
 INSERT INTO test_cases (id, problem_id, input_data, expected_output, is_sample, is_hidden, explanation, display_order) VALUES
 (8, 3, '3', '["1","2","Fizz"]', TRUE, FALSE, 'Numbers up to 3.', 1),
 (9, 3, '5', '["1","2","Fizz","4","Buzz"]', TRUE, FALSE, 'Numbers up to 5.', 2),
 (10, 3, '15', '["1","2","Fizz","4","Buzz","Fizz","7","8","Fizz","Buzz","11","Fizz","13","14","FizzBuzz"]', FALSE, TRUE, 'Tests FizzBuzz combination at 15.', 3)
-ON DUPLICATE KEY UPDATE input_data=VALUES(input_data);
+ON CONFLICT (id) DO UPDATE SET input_data = EXCLUDED.input_data;
 
 -- 6. Insert Quiz for Topic 1
 INSERT INTO quizzes (id, topic_id, title, description, time_limit_minutes, passing_score_percentage, created_at, updated_at) VALUES
 (1, 1, 'Java Basics & Fundamentals Assessment', 'Test your understanding of Java 21 data types, operators, JVM mechanics, and control structures.', 10, 70, NOW(), NOW())
-ON DUPLICATE KEY UPDATE title=VALUES(title);
+ON CONFLICT (id) DO UPDATE SET title = EXCLUDED.title;
 
 -- 7. Insert Questions for Quiz 1
 INSERT INTO questions (id, quiz_id, question_text, question_type, points, explanation, display_order) VALUES
 (1, 1, 'Which of the following components in the Java architecture executes Java bytecode directly?', 'SINGLE_CHOICE', 10, 'The Java Virtual Machine (JVM) interprets and compiles bytecode into machine language.', 1),
 (2, 1, 'What is the default value of an uninitialized boolean instance variable in Java?', 'SINGLE_CHOICE', 10, 'In Java, boolean instance variables default to false.', 2),
 (3, 1, 'Which primitive type in Java occupies 64 bits of memory?', 'SINGLE_CHOICE', 10, 'Both long (integer) and double (floating point) occupy 64 bits (8 bytes) in Java.', 3)
-ON DUPLICATE KEY UPDATE question_text=VALUES(question_text);
+ON CONFLICT (id) DO UPDATE SET question_text = EXCLUDED.question_text;
 
 -- 8. Insert Options for Questions
 -- Question 1 Options
@@ -204,4 +204,14 @@ INSERT INTO question_options (id, question_id, option_text, is_correct, display_
 (10, 3, 'float', FALSE, 2),
 (11, 3, 'long', TRUE, 3),
 (12, 3, 'short', FALSE, 4)
-ON DUPLICATE KEY UPDATE option_text=VALUES(option_text);
+ON CONFLICT (id) DO UPDATE SET option_text = EXCLUDED.option_text;
+
+-- Keep identity sequences ahead of the explicit ids inserted above
+SELECT setval(pg_get_serial_sequence('courses', 'id'), COALESCE((SELECT MAX(id) FROM courses), 1));
+SELECT setval(pg_get_serial_sequence('topics', 'id'), COALESCE((SELECT MAX(id) FROM topics), 1));
+SELECT setval(pg_get_serial_sequence('lessons', 'id'), COALESCE((SELECT MAX(id) FROM lessons), 1));
+SELECT setval(pg_get_serial_sequence('problems', 'id'), COALESCE((SELECT MAX(id) FROM problems), 1));
+SELECT setval(pg_get_serial_sequence('test_cases', 'id'), COALESCE((SELECT MAX(id) FROM test_cases), 1));
+SELECT setval(pg_get_serial_sequence('quizzes', 'id'), COALESCE((SELECT MAX(id) FROM quizzes), 1));
+SELECT setval(pg_get_serial_sequence('questions', 'id'), COALESCE((SELECT MAX(id) FROM questions), 1));
+SELECT setval(pg_get_serial_sequence('question_options', 'id'), COALESCE((SELECT MAX(id) FROM question_options), 1));

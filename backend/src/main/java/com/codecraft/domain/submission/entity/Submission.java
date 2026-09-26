@@ -40,7 +40,7 @@ public class Submission {
     @Builder.Default
     private String language = "JAVA";
 
-    @Column(name = "source_code", nullable = false, columnDefinition = "LONGTEXT")
+    @Column(name = "source_code", nullable = false, columnDefinition = "TEXT")
     private String sourceCode;
 
     @Enumerated(EnumType.STRING)

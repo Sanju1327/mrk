@@ -3,10 +3,10 @@
 -- ==========================================
 
 -- Seed Roles
-INSERT INTO roles (name, description) VALUES 
+INSERT INTO roles (name, description) VALUES
 ('ROLE_STUDENT', 'Standard enrolled student and code practitioner'),
 ('ROLE_ADMIN', 'Platform content author and administrator')
-ON DUPLICATE KEY UPDATE name=name;
+ON CONFLICT (name) DO NOTHING;
 
 -- Seed Achievements
 INSERT INTO achievements (code, title, description, icon_url, points, criteria_type, criteria_threshold) VALUES
@@ -16,4 +16,4 @@ INSERT INTO achievements (code, title, description, icon_url, points, criteria_t
 ('STREAK_7_DAYS', '7-Day Code Streak', 'Practice and submit code for 7 consecutive days.', 'flame', 200, 'STREAK_DAYS', 7),
 ('PERFECT_QUIZ', 'Quiz Master', 'Score 100% on any topic assessment quiz.', 'trophy', 100, 'PERFECT_QUIZ', 1),
 ('COURSE_COMPLETED', 'Course Graduate', 'Complete all lessons, quizzes, and coding challenges in a course track.', 'award', 300, 'COURSE_COMPLETED', 1)
-ON DUPLICATE KEY UPDATE title=VALUES(title);
+ON CONFLICT (code) DO UPDATE SET title = EXCLUDED.title;

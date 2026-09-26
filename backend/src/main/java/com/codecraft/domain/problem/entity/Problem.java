@@ -58,7 +58,7 @@ public class Problem {
     @Column(nullable = false, unique = true, length = 200)
     private String slug;
 
-    @Column(nullable = false, columnDefinition = "LONGTEXT")
+    @Column(nullable = false, columnDefinition = "TEXT")
     private String description;
 
     @Column(nullable = false, columnDefinition = "TEXT")
@@ -80,7 +80,7 @@ public class Problem {
     @Builder.Default
     private int memoryLimitMb = 256;
 
-    @Column(name = "starter_code", nullable = false, columnDefinition = "LONGTEXT")
+    @Column(name = "starter_code", nullable = false, columnDefinition = "TEXT")
     private String starterCode;
 
     @Column(columnDefinition = "TEXT")

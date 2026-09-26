@@ -36,10 +36,10 @@ public class ContentBlock {
     @Column(length = 200)
     private String title;
 
-    @Column(columnDefinition = "LONGTEXT")
+    @Column(columnDefinition = "TEXT")
     private String content;
 
-    @Column(name = "data_json", columnDefinition = "LONGTEXT")
+    @Column(name = "data_json", columnDefinition = "TEXT")
     private String dataJson;
 
     @Column(name = "display_order", nullable = false)
