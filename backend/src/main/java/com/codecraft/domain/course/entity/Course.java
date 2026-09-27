@@ -39,6 +39,13 @@ public class Course {
     @Column(name = "icon_url", length = 255)
     private String iconUrl;
 
+    @Column(name = "thumbnail_url", length = 500)
+    private String thumbnailUrl;
+
+    @Column(nullable = false, length = 50)
+    @Builder.Default
+    private String language = "English";
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 20)
     @Builder.Default

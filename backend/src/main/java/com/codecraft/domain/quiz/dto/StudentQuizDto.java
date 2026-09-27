@@ -23,9 +23,19 @@ public class StudentQuizDto {
     private String description;
     private int timeLimitMinutes;
     private int passingScorePercentage;
+    private boolean enabled;
     private int totalQuestions;
     private int totalPoints;
     private List<StudentQuestionDto> questions;
+
+    // Context for navigation after the quiz
+    private String courseSlug;
+    private String courseTitle;
+    private String topicTitle;
+    private Long nextChapterFirstLessonId;
+
+    /** Attempt state for the requesting student (null for anonymous/teacher calls). */
+    private QuizAttemptInfoDto attemptInfo;
 
     @Data
     @Builder
@@ -83,6 +93,10 @@ public class StudentQuizDto {
                 .description(quiz.getDescription())
                 .timeLimitMinutes(quiz.getTimeLimitMinutes())
                 .passingScorePercentage(quiz.getPassingScorePercentage())
+                .enabled(quiz.isEnabled())
+                .courseSlug(quiz.getTopic() != null && quiz.getTopic().getCourse() != null ? quiz.getTopic().getCourse().getSlug() : null)
+                .courseTitle(quiz.getTopic() != null && quiz.getTopic().getCourse() != null ? quiz.getTopic().getCourse().getTitle() : null)
+                .topicTitle(quiz.getTopic() != null ? quiz.getTopic().getTitle() : null)
                 .totalQuestions(quiz.getQuestions().size())
                 .totalPoints(totalPoints)
                 .questions(questionDtos)

@@ -17,6 +17,11 @@ export default defineConfig({
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
+      // Uploaded course assets (videos, learning materials, thumbnails) are served by the backend.
+      '/uploads': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
     },
   },
 });

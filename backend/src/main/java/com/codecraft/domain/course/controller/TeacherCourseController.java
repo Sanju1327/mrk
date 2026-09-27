@@ -13,11 +13,13 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 
@@ -99,8 +101,11 @@ public class TeacherCourseController {
 
     @GetMapping("/courses/{id}/validate")
     @Operation(summary = "Validate course completeness for publishing")
-    public ResponseEntity<ApiResponse<PublishValidationResultDto>> validatePublish(@PathVariable Long id) {
-        PublishValidationResultDto result = teacherCourseService.validatePublish(id);
+    public ResponseEntity<ApiResponse<PublishValidationResultDto>> validatePublish(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User user = getAuthenticatedUser(userDetails);
+        PublishValidationResultDto result = teacherCourseService.validatePublish(id, user);
         return ResponseEntity.ok(ApiResponse.success(result, "Publish validation completed"));
     }
 
@@ -122,6 +127,27 @@ public class TeacherCourseController {
         User user = getAuthenticatedUser(userDetails);
         CourseDetailDto course = teacherCourseService.unpublishCourse(id, user);
         return ResponseEntity.ok(ApiResponse.success(course, "Course reverted to draft"));
+    }
+
+    @RequestMapping(value = "/courses/{id}/archive", method = {RequestMethod.POST, RequestMethod.PATCH})
+    @Operation(summary = "Archive course (hidden from students, kept for records)")
+    public ResponseEntity<ApiResponse<CourseDetailDto>> archiveCourse(
+            @PathVariable Long id,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User user = getAuthenticatedUser(userDetails);
+        CourseDetailDto course = teacherCourseService.archiveCourse(id, user);
+        return ResponseEntity.ok(ApiResponse.success(course, "Course archived"));
+    }
+
+    @PutMapping({"/courses/{courseId}/modules/reorder", "/courses/{courseId}/topics/reorder"})
+    @Operation(summary = "Reorder chapters in a course", description = "Body: ordered list of chapter ids")
+    public ResponseEntity<ApiResponse<List<TopicDetailDto>>> reorderModules(
+            @PathVariable Long courseId,
+            @RequestBody List<Long> orderedIds,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User user = getAuthenticatedUser(userDetails);
+        List<TopicDetailDto> topics = teacherCourseService.reorderModules(courseId, orderedIds, user);
+        return ResponseEntity.ok(ApiResponse.success(topics, "Chapters reordered"));
     }
 
     // --- Modules / Topics ---
@@ -161,7 +187,63 @@ public class TeacherCourseController {
         return ResponseEntity.ok(ApiResponse.success(null, "Module deleted successfully"));
     }
 
+    @PutMapping({"/modules/{moduleId}/lessons/reorder", "/topics/{moduleId}/lessons/reorder"})
+    @Operation(summary = "Reorder lessons in a chapter", description = "Body: ordered list of lesson ids")
+    public ResponseEntity<ApiResponse<List<LessonSummaryDto>>> reorderLessons(
+            @PathVariable Long moduleId,
+            @RequestBody List<Long> orderedIds,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User user = getAuthenticatedUser(userDetails);
+        List<LessonSummaryDto> lessons = teacherCourseService.reorderLessons(moduleId, orderedIds, user);
+        return ResponseEntity.ok(ApiResponse.success(lessons, "Lessons reordered"));
+    }
+
     // --- Lessons ---
+
+    @GetMapping("/lessons/{lessonId}")
+    @Operation(summary = "Get full lesson for editing (video, materials, content blocks)")
+    public ResponseEntity<ApiResponse<LessonDetailDto>> getLessonForEdit(
+            @PathVariable Long lessonId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User user = getAuthenticatedUser(userDetails);
+        LessonDetailDto lesson = teacherCourseService.getLessonForEdit(lessonId, user);
+        return ResponseEntity.ok(ApiResponse.success(lesson, "Lesson retrieved for editing"));
+    }
+
+    @PostMapping(value = "/lessons/{lessonId}/video", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload a video file and set it as the lesson video")
+    public ResponseEntity<ApiResponse<LessonDetailDto>> uploadLessonVideo(
+            @PathVariable Long lessonId,
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User user = getAuthenticatedUser(userDetails);
+        LessonDetailDto lesson = teacherCourseService.uploadLessonVideo(lessonId, file, user);
+        return ResponseEntity.ok(ApiResponse.success(lesson, "Lesson video uploaded"));
+    }
+
+    @DeleteMapping("/lessons/{lessonId}/video")
+    @Operation(summary = "Remove the lesson video (deletes uploaded file)")
+    public ResponseEntity<ApiResponse<LessonDetailDto>> removeLessonVideo(
+            @PathVariable Long lessonId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User user = getAuthenticatedUser(userDetails);
+        LessonDetailDto lesson = teacherCourseService.removeLessonVideo(lessonId, user);
+        return ResponseEntity.ok(ApiResponse.success(lesson, "Lesson video removed"));
+    }
+
+    @PostMapping(value = "/lessons/{lessonId}/materials", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload a learning material file to a lesson")
+    public ResponseEntity<ApiResponse<CourseResourceDto>> uploadLessonMaterial(
+            @PathVariable Long lessonId,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam(value = "title", required = false) String title,
+            @RequestParam(value = "description", required = false) String description,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User user = getAuthenticatedUser(userDetails);
+        CourseResourceDto resource = teacherCourseService.uploadLessonMaterial(lessonId, file, title, description, user);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(resource, "Learning material uploaded"));
+    }
 
     @PostMapping({"/modules/{moduleId}/lessons", "/topics/{moduleId}/lessons"})
     @Operation(summary = "Add lesson to module")
@@ -199,6 +281,16 @@ public class TeacherCourseController {
     }
 
     // --- Content Blocks ---
+
+    @GetMapping("/lessons/{lessonId}/blocks")
+    @Operation(summary = "List content blocks of a lesson")
+    public ResponseEntity<ApiResponse<List<ContentBlockDto>>> getContentBlocks(
+            @PathVariable Long lessonId,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User user = getAuthenticatedUser(userDetails);
+        List<ContentBlockDto> blocks = teacherCourseService.getContentBlocks(lessonId, user);
+        return ResponseEntity.ok(ApiResponse.success(blocks, "Content blocks retrieved"));
+    }
 
     @PostMapping("/lessons/{lessonId}/blocks")
     @Operation(summary = "Add content block to lesson")
@@ -257,6 +349,28 @@ public class TeacherCourseController {
         CourseResourceDto resource = teacherCourseService.addResource(courseId, lessonId, dto, user);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(resource, "Resource added successfully"));
+    }
+
+    @PutMapping("/resources/{resourceId}")
+    @Operation(summary = "Update learning material title/description")
+    public ResponseEntity<ApiResponse<CourseResourceDto>> updateResource(
+            @PathVariable Long resourceId,
+            @Valid @RequestBody UpdateResourceRequest request,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User user = getAuthenticatedUser(userDetails);
+        CourseResourceDto resource = teacherCourseService.updateResource(resourceId, request, user);
+        return ResponseEntity.ok(ApiResponse.success(resource, "Resource updated"));
+    }
+
+    @PostMapping(value = "/resources/{resourceId}/file", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Replace the file behind a learning material")
+    public ResponseEntity<ApiResponse<CourseResourceDto>> replaceResourceFile(
+            @PathVariable Long resourceId,
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal UserDetails userDetails) {
+        User user = getAuthenticatedUser(userDetails);
+        CourseResourceDto resource = teacherCourseService.replaceMaterialFile(resourceId, file, user);
+        return ResponseEntity.ok(ApiResponse.success(resource, "Resource file replaced"));
     }
 
     @DeleteMapping("/resources/{resourceId}")

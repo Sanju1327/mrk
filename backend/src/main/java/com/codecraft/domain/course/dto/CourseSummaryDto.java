@@ -22,6 +22,8 @@ public class CourseSummaryDto {
     private com.codecraft.domain.course.entity.CourseStatus status;
     private Integer estimatedHours;
     private String iconUrl;
+    private String thumbnailUrl;
+    private String language;
     private Boolean published;
     private Integer topicCount;
     private Integer lessonCount;
@@ -39,6 +41,8 @@ public class CourseSummaryDto {
                 .status(course.getStatus())
                 .estimatedHours(estimatedHours)
                 .iconUrl(course.getIconUrl())
+                .thumbnailUrl(course.getThumbnailUrl())
+                .language(course.getLanguage())
                 .published(course.isPublished())
                 .topicCount(topicCount)
                 .lessonCount(lessonCount)

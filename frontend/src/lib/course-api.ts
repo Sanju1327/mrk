@@ -27,6 +27,10 @@ export const courseApi = {
     await api.post<ApiResponse<void>>(`/courses/lessons/${lessonId}/complete`);
   },
 
+  saveLessonProgress: async (lessonId: number, videoPositionSeconds: number): Promise<void> => {
+    await api.put<ApiResponse<void>>(`/courses/lessons/${lessonId}/progress`, { videoPositionSeconds });
+  },
+
   enroll: async (courseId: number): Promise<Enrollment> => {
     const { data } = await api.post<ApiResponse<Enrollment>>(`/enrollments/${courseId}`);
     return data.data;

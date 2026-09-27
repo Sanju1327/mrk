@@ -18,14 +18,14 @@ public class CreateCourseRequest {
     @Size(max = 150, message = "Title cannot exceed 150 characters")
     private String title;
 
-    @NotBlank(message = "Slug is required")
+    /** Optional: generated from the title when blank. */
     @Size(max = 150, message = "Slug cannot exceed 150 characters")
     private String slug;
 
     @NotBlank(message = "Description is required")
     private String description;
 
-    @NotBlank(message = "Category is required")
+    @Size(max = 100, message = "Category cannot exceed 100 characters")
     private String category;
 
     @Builder.Default
@@ -34,5 +34,14 @@ public class CreateCourseRequest {
     @Builder.Default
     private String estimatedDuration = "4 weeks";
 
+    @Size(max = 50, message = "Language cannot exceed 50 characters")
+    private String language;
+
     private String iconUrl;
+
+    @Size(max = 500, message = "Thumbnail URL cannot exceed 500 characters")
+    private String thumbnailUrl;
+
+    /** Super Admin only: assign the course to a specific teacher. Ignored for teachers (always self). */
+    private Long teacherId;
 }

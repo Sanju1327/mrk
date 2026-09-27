@@ -27,6 +27,7 @@ public class CourseResourceDto {
     private String provider;
     private String attribution;
     private String uploaderName;
+    private Integer displayOrder;
     private LocalDateTime createdAt;
 
     public static CourseResourceDto fromEntity(CourseResource res) {
@@ -45,6 +46,7 @@ public class CourseResourceDto {
                 .provider(res.getProvider())
                 .attribution(res.getAttribution())
                 .uploaderName(res.getUploadedBy() != null ? res.getUploadedBy().getFullName() : null)
+                .displayOrder(res.getDisplayOrder())
                 .createdAt(res.getCreatedAt())
                 .build();
     }

@@ -1,4 +1,4 @@
-import { CourseLevel, ContentBlockType } from './course';
+import { CourseLevel, ContentBlockType, VideoType } from './course';
 
 export interface TeacherDashboardStats {
   myCoursesCount: number;
@@ -10,37 +10,73 @@ export interface TeacherDashboardStats {
 
 export interface CreateCoursePayload {
   title: string;
-  slug: string;
+  slug?: string;
   description: string;
-  category: string;
+  category?: string;
   level: CourseLevel;
   estimatedDuration?: string;
+  language?: string;
   iconUrl?: string;
+  thumbnailUrl?: string;
+  /** Super Admin only: assign to a teacher. */
+  teacherId?: number;
 }
 
 export interface UpdateCoursePayload {
-  title?: string;
-  slug?: string;
-  description?: string;
+  title: string;
+  description: string;
   category?: string;
   level?: CourseLevel;
   estimatedDuration?: string;
+  language?: string;
   iconUrl?: string;
+  thumbnailUrl?: string;
+  teacherId?: number;
 }
 
 export interface CreateTopicPayload {
   title: string;
-  slug: string;
+  slug?: string;
   description?: string;
   displayOrder?: number;
+  requireAllLessons?: boolean;
+  requireQuizPass?: boolean;
+  allowQuizRetakes?: boolean;
+  maxQuizAttempts?: number | null;
+}
+
+export interface UpdateTopicPayload {
+  title: string;
+  description?: string;
+  displayOrder?: number;
+  requireAllLessons?: boolean;
+  requireQuizPass?: boolean;
+  allowQuizRetakes?: boolean;
+  maxQuizAttempts?: number;
+  clearMaxQuizAttempts?: boolean;
 }
 
 export interface CreateLessonPayload {
   title: string;
-  slug: string;
+  slug?: string;
+  description?: string;
   contentMarkdown?: string;
   estimatedMinutes?: number;
   displayOrder?: number;
+  videoType?: VideoType;
+  videoUrl?: string;
+  published?: boolean;
+}
+
+export interface UpdateLessonPayload {
+  title: string;
+  description?: string;
+  contentMarkdown?: string;
+  estimatedMinutes?: number;
+  displayOrder?: number;
+  videoType?: VideoType;
+  videoUrl?: string;
+  published?: boolean;
 }
 
 export interface CreateBlockPayload {
@@ -49,6 +85,15 @@ export interface CreateBlockPayload {
   content: string;
   dataJson?: string;
   displayOrder?: number;
+}
+
+export interface UploadedFile {
+  url: string;
+  fileName: string;
+  safeFileName: string;
+  size: number;
+  mimeType: string;
+  kind: 'IMAGE' | 'MATERIAL' | 'VIDEO';
 }
 
 export interface CreateQuizOptionPayload {
@@ -68,6 +113,7 @@ export interface CreateQuizPayload {
   description?: string;
   timeLimitMinutes?: number;
   passingScorePercentage?: number;
+  topicId?: number;
   lessonId?: number;
   questions: CreateQuizQuestionPayload[];
 }

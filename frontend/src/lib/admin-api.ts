@@ -18,8 +18,9 @@ export const adminApi = {
     return data.data;
   },
 
-  toggleTeacherStatus: async (teacherId: number): Promise<TeacherSummary> => {
-    const { data } = await api.patch<ApiResponse<TeacherSummary>>(`/admin/teachers/${teacherId}/toggle-status`);
+  /** Backend expects the desired state: PATCH /admin/teachers/{id}/status { active }. */
+  toggleTeacherStatus: async (teacherId: number, active: boolean): Promise<TeacherSummary> => {
+    const { data } = await api.patch<ApiResponse<TeacherSummary>>(`/admin/teachers/${teacherId}/status`, { active });
     return data.data;
   },
 

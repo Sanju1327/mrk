@@ -62,6 +62,10 @@ public class CourseResource {
     @Column(length = 255)
     private String attribution;
 
+    @Column(name = "display_order", nullable = false)
+    @Builder.Default
+    private int displayOrder = 0;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "uploaded_by", nullable = false)
     private User uploadedBy;

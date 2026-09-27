@@ -24,11 +24,17 @@ public class CourseDetailDto {
     private com.codecraft.domain.course.entity.CourseStatus status;
     private Integer estimatedHours;
     private String iconUrl;
+    private String thumbnailUrl;
+    private String language;
     private Boolean published;
     private Integer totalLessons;
     private Boolean isEnrolled;
     private Integer completedLessons;
     private Double progressPercentage;
+    /** Student-facing progress state (NOT_STARTED when not enrolled / nothing done). */
+    private ProgressStatus progressStatus;
+    private Integer totalChapters;
+    private Integer completedChapters;
     private InstructorDto instructor;
     private List<TopicDetailDto> topics;
     private List<CourseResourceDto> resources;
@@ -42,9 +48,28 @@ public class CourseDetailDto {
             double progressPercentage,
             List<TopicDetailDto> topics
     ) {
+        // Course-level resources only; lesson materials are returned with the lesson.
         List<CourseResourceDto> resList = course.getResources() != null ?
-                course.getResources().stream().map(CourseResourceDto::fromEntity).toList() :
+                course.getResources().stream()
+                        .filter(r -> r.getLesson() == null)
+                        .map(CourseResourceDto::fromEntity).toList() :
                 java.util.Collections.emptyList();
+
+        int completedChapters = 0;
+        if (topics != null) {
+            completedChapters = (int) topics.stream()
+                    .filter(t -> t.getProgress() != null && t.getProgress().getStatus() == ProgressStatus.COMPLETED)
+                    .count();
+        }
+        ProgressStatus status;
+        if (totalLessons > 0 && completedLessons >= totalLessons
+                && topics != null && !topics.isEmpty() && completedChapters == topics.size()) {
+            status = ProgressStatus.COMPLETED;
+        } else if (completedLessons > 0 || completedChapters > 0) {
+            status = ProgressStatus.IN_PROGRESS;
+        } else {
+            status = ProgressStatus.NOT_STARTED;
+        }
 
         return CourseDetailDto.builder()
                 .id(course.getId())
@@ -57,11 +82,16 @@ public class CourseDetailDto {
                 .status(course.getStatus())
                 .estimatedHours(estimatedHours)
                 .iconUrl(course.getIconUrl())
+                .thumbnailUrl(course.getThumbnailUrl())
+                .language(course.getLanguage())
                 .published(course.isPublished())
                 .totalLessons(totalLessons)
                 .isEnrolled(isEnrolled)
                 .completedLessons(completedLessons)
                 .progressPercentage(progressPercentage)
+                .progressStatus(status)
+                .totalChapters(topics != null ? topics.size() : 0)
+                .completedChapters(completedChapters)
                 .instructor(InstructorDto.fromUser(course.getTeacher()))
                 .topics(topics)
                 .resources(resList)

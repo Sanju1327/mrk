@@ -20,7 +20,12 @@ public class QuizResultDto {
     private double percentage;
     private boolean passed;
     private int timeSpentSeconds;
+    private int passingScorePercentage;
     private List<QuestionResultDto> questionResults;
+    /** Updated attempt state after this submission (drives "Retry" availability). */
+    private QuizAttemptInfoDto attemptInfo;
+    private String courseSlug;
+    private Long nextChapterFirstLessonId;
 
     @Data
     @Builder

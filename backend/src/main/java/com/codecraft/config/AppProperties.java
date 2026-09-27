@@ -17,6 +17,14 @@ public class AppProperties {
     private final Jwt jwt = new Jwt();
     private final Cors cors = new Cors();
     private final Sandbox sandbox = new Sandbox();
+    private final Storage storage = new Storage();
+
+    @Getter
+    @Setter
+    public static class Storage {
+        /** Local directory where uploaded course assets are stored (served at /uploads/**). */
+        private String localDir = "uploads";
+    }
 
     @Getter
     @Setter

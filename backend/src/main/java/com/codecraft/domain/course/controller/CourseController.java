@@ -4,8 +4,10 @@ import com.codecraft.common.response.ApiResponse;
 import com.codecraft.domain.course.dto.CourseDetailDto;
 import com.codecraft.domain.course.dto.CourseSummaryDto;
 import com.codecraft.domain.course.dto.LessonDetailDto;
+import com.codecraft.domain.course.dto.UpdateLessonProgressRequest;
 import com.codecraft.domain.course.service.CourseService;
 import com.codecraft.security.UserPrincipal;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -63,5 +65,15 @@ public class CourseController {
     ) {
         courseService.completeLesson(lessonId, currentUser.getId());
         return ResponseEntity.ok(ApiResponse.ok("Lesson marked as completed", null));
+    }
+
+    @PutMapping("/lessons/{lessonId}/progress")
+    public ResponseEntity<ApiResponse<Void>> updateLessonProgress(
+            @PathVariable Long lessonId,
+            @Valid @RequestBody UpdateLessonProgressRequest request,
+            @AuthenticationPrincipal UserPrincipal currentUser
+    ) {
+        courseService.updateLessonProgress(lessonId, currentUser.getId(), request);
+        return ResponseEntity.ok(ApiResponse.ok("Lesson progress saved", null));
     }
 }

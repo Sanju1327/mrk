@@ -3,7 +3,7 @@ package com.codecraft.domain.course.entity;
 import com.codecraft.domain.user.entity.User;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 
 import java.time.LocalDateTime;
 
@@ -39,9 +39,17 @@ public class LessonProgress {
 
     @Column(name = "is_completed", nullable = false)
     @Builder.Default
-    private boolean completed = true;
+    private boolean completed = false;
 
-    @CreationTimestamp
-    @Column(name = "completed_at", nullable = false)
+    @Column(name = "completed_at")
     private LocalDateTime completedAt;
+
+    /** Last known playback position of the lesson video, used to resume. */
+    @Column(name = "video_position_seconds", nullable = false)
+    @Builder.Default
+    private int videoPositionSeconds = 0;
+
+    @UpdateTimestamp
+    @Column(name = "last_accessed_at")
+    private LocalDateTime lastAccessedAt;
 }

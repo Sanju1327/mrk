@@ -47,6 +47,26 @@ public class Topic {
     @Builder.Default
     private int displayOrder = 0;
 
+    // --- Chapter completion settings ---
+
+    /** Students must complete every lesson in this chapter before it counts as complete / unlocks the next chapter. */
+    @Column(name = "require_all_lessons", nullable = false)
+    @Builder.Default
+    private boolean requireAllLessons = false;
+
+    /** Students must pass the chapter quiz before the chapter counts as complete. */
+    @Column(name = "require_quiz_pass", nullable = false)
+    @Builder.Default
+    private boolean requireQuizPass = false;
+
+    @Column(name = "allow_quiz_retakes", nullable = false)
+    @Builder.Default
+    private boolean allowQuizRetakes = true;
+
+    /** Null = unlimited attempts. */
+    @Column(name = "max_quiz_attempts")
+    private Integer maxQuizAttempts;
+
     @OneToMany(mappedBy = "topic", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("displayOrder ASC")
     @Builder.Default

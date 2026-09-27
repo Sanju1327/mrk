@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import ReactMarkdown from 'react-markdown';
@@ -17,22 +17,47 @@ import {
   Copy,
   HelpCircle,
   GraduationCap,
+  Lock,
+  ClipboardCheck,
+  Paperclip,
 } from 'lucide-react';
 import { courseApi } from '@/lib/course-api';
+import { useAuth } from '@/hooks/useAuth';
 import type { TopicDetail, LessonSummary, ContentBlock } from '@/types/course';
 import { Button } from '@/components/ui/button';
+import { VideoPlayer } from '@/components/media/VideoPlayer';
+import { MaterialList } from '@/components/media/MaterialList';
 
 export const LessonViewPage: React.FC = () => {
   const { lessonId } = useParams<{ lessonId: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { isTeacher } = useAuth();
   const numericLessonId = Number(lessonId);
+  const lastSavedPosition = useRef<number>(-1);
 
   const { data: lesson, isLoading, error } = useQuery({
     queryKey: ['lesson', numericLessonId],
     queryFn: () => courseApi.getLessonById(numericLessonId),
     enabled: !isNaN(numericLessonId),
+    retry: (count, err: any) => {
+      const status = err?.response?.status;
+      return status !== 403 && status !== 404 && count < 2;
+    },
   });
+
+  // Persist playback position for uploaded videos (the player throttles calls to ~5s).
+  const handleVideoProgress = useCallback(
+    (seconds: number) => {
+      const rounded = Math.floor(seconds);
+      if (rounded === lastSavedPosition.current) return;
+      lastSavedPosition.current = rounded;
+      courseApi.saveLessonProgress(numericLessonId, rounded).catch(() => {
+        /* best effort; the position is only a convenience */
+      });
+    },
+    [numericLessonId]
+  );
 
   // Fetch parent course to provide contextual syllabus navigation
   const { data: course } = useQuery({
@@ -69,18 +94,45 @@ export const LessonViewPage: React.FC = () => {
   }
 
   if (error || !lesson) {
+    const status = (error as any)?.response?.status;
+    const message: string | undefined = (error as any)?.response?.data?.message;
+    const locked = status === 403;
     return (
       <div className="container max-w-md mx-auto px-4 py-24 text-center space-y-4 font-sans">
-        <h2 className="text-xl font-semibold text-foreground">Lesson Not Found</h2>
-        <p className="text-xs text-muted-foreground">The requested lesson material could not be loaded.</p>
-        <Link to="/courses">
-          <Button variant="outline" size="sm">Back to Courses</Button>
-        </Link>
+        {locked ? (
+          <>
+            <div className="mx-auto w-12 h-12 rounded-full bg-surface-raised border border-border flex items-center justify-center text-muted-foreground">
+              <Lock className="h-5 w-5" />
+            </div>
+            <h2 className="text-xl font-semibold text-foreground">This lesson is locked</h2>
+            <p className="text-xs text-muted-foreground">
+              {message || 'Complete the previous chapter (and pass its quiz, if required) to unlock this lesson.'}
+            </p>
+          </>
+        ) : (
+          <>
+            <h2 className="text-xl font-semibold text-foreground">Lesson Not Found</h2>
+            <p className="text-xs text-muted-foreground">
+              {status === 401 ? 'Please sign in to view this lesson.' : message || 'The requested lesson material could not be loaded.'}
+            </p>
+          </>
+        )}
+        <div className="flex items-center justify-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => navigate(-1)}>Go back</Button>
+          <Link to="/courses">
+            <Button variant="ghost" size="sm">All courses</Button>
+          </Link>
+        </div>
       </div>
     );
   }
 
   const hasBlocks = lesson.contentBlocks && lesson.contentBlocks.length > 0;
+  const hasVideo = lesson.videoType && lesson.videoType !== 'NONE' && !!lesson.videoUrl;
+  const materials = lesson.resources ?? [];
+  const hasMarkdown = !!lesson.contentMarkdown && lesson.contentMarkdown.trim().length > 0;
+  const showChapterQuizCta = lesson.lastInChapter && lesson.chapterQuizId != null;
+  const isAuthorPreview = isTeacher && !lesson.completed && course && !course.isEnrolled;
 
   return (
     <div className="min-h-[calc(100vh-3.5rem)] flex flex-col justify-between font-sans">
@@ -111,6 +163,10 @@ export const LessonViewPage: React.FC = () => {
               <span className="inline-flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 font-mono text-xs font-medium text-emerald-400">
                 <Check className="h-3 w-3" />
                 <span>Completed</span>
+              </span>
+            ) : isAuthorPreview ? (
+              <span className="inline-flex items-center gap-1 rounded border border-purple-500/30 bg-purple-500/10 px-2.5 py-1 font-mono text-xs font-medium text-purple-300">
+                Author preview
               </span>
             ) : (
               <Button
@@ -147,42 +203,71 @@ export const LessonViewPage: React.FC = () => {
 
               {course?.topics && (
                 <div className="space-y-4 max-h-[calc(100vh-14rem)] overflow-y-auto pr-1 font-mono">
-                  {course.topics.map((topic: TopicDetail, tIdx: number) => (
-                    <div key={topic.id} className="space-y-1.5">
-                      <div className="text-[11px] font-medium text-muted-foreground uppercase">
-                        {tIdx + 1}. {topic.title}
-                      </div>
-                      <div className="space-y-0.5 pl-2 border-l border-border">
-                        {topic.lessons.map((l: LessonSummary) => {
-                          const isCurrent = l.id === numericLessonId;
-                          return (
-                            <Link
-                              key={l.id}
-                              to={`/lessons/${l.id}`}
-                              className={`group flex items-center justify-between py-1 px-2 rounded text-xs transition-colors ${
-                                isCurrent
-                                  ? 'bg-surface-raised text-foreground font-medium border border-border/80'
-                                  : 'text-muted-foreground hover:text-foreground hover:bg-surface-raised/50'
-                              }`}
-                            >
-                              <div className="flex items-center gap-1.5 truncate">
-                                {l.completed ? (
-                                  <Check className="h-3 w-3 text-emerald-400 shrink-0" />
-                                ) : (
-                                  <div
-                                    className={`h-1.5 w-1.5 rounded-full shrink-0 ${
-                                      isCurrent ? 'bg-foreground' : 'bg-border'
-                                    }`}
-                                  />
-                                )}
-                                <span className="truncate">{l.title}</span>
+                  {course.topics.map((topic: TopicDetail, tIdx: number) => {
+                    const locked = !!topic.progress?.locked && !isTeacher;
+                    return (
+                      <div key={topic.id} className="space-y-1.5">
+                        <div className="text-[11px] font-medium text-muted-foreground uppercase flex items-center gap-1.5">
+                          {locked && <Lock className="h-3 w-3" />}
+                          <span className="truncate">{tIdx + 1}. {topic.title}</span>
+                          {topic.progress?.status === 'COMPLETED' && <Check className="h-3 w-3 text-emerald-400 shrink-0" />}
+                        </div>
+                        <div className="space-y-0.5 pl-2 border-l border-border">
+                          {topic.lessons.map((l: LessonSummary) => {
+                            const isCurrent = l.id === numericLessonId;
+                            const row = (
+                              <>
+                                <div className="flex items-center gap-1.5 truncate">
+                                  {l.completed ? (
+                                    <Check className="h-3 w-3 text-emerald-400 shrink-0" />
+                                  ) : (
+                                    <div className={`h-1.5 w-1.5 rounded-full shrink-0 ${isCurrent ? 'bg-foreground' : 'bg-border'}`} />
+                                  )}
+                                  <span className="truncate">{l.title}</span>
+                                </div>
+                                {l.hasVideo && <Video className="h-3 w-3 shrink-0 opacity-60" />}
+                              </>
+                            );
+                            if (locked) {
+                              return (
+                                <div key={l.id} className="flex items-center justify-between py-1 px-2 rounded text-xs text-muted-foreground/50 cursor-not-allowed">
+                                  {row}
+                                </div>
+                              );
+                            }
+                            return (
+                              <Link
+                                key={l.id}
+                                to={`/lessons/${l.id}`}
+                                className={`group flex items-center justify-between py-1 px-2 rounded text-xs transition-colors ${
+                                  isCurrent
+                                    ? 'bg-surface-raised text-foreground font-medium border border-border/80'
+                                    : 'text-muted-foreground hover:text-foreground hover:bg-surface-raised/50'
+                                }`}
+                              >
+                                {row}
+                              </Link>
+                            );
+                          })}
+                          {topic.quiz?.enabled && (
+                            locked ? (
+                              <div className="flex items-center gap-1.5 py-1 px-2 text-xs text-muted-foreground/50">
+                                <ClipboardCheck className="h-3 w-3" /> <span className="truncate">{topic.quiz.title}</span>
                               </div>
-                            </Link>
-                          );
-                        })}
+                            ) : (
+                              <Link
+                                to={`/quizzes/${topic.quiz.id}`}
+                                className="flex items-center gap-1.5 py-1 px-2 rounded text-xs text-amber-300/80 hover:text-amber-200 hover:bg-amber-500/10 transition-colors"
+                              >
+                                {topic.progress?.quizPassed ? <Check className="h-3 w-3 text-emerald-400" /> : <ClipboardCheck className="h-3 w-3" />}
+                                <span className="truncate">{topic.quiz.title}</span>
+                              </Link>
+                            )
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -198,22 +283,79 @@ export const LessonViewPage: React.FC = () => {
               <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-foreground">
                 {lesson.title}
               </h1>
+              {lesson.description && (
+                <p className="text-sm text-muted-foreground leading-relaxed pt-1">{lesson.description}</p>
+              )}
             </div>
 
-            {/* If Content Blocks Exist, render in rich sequence */}
+            {/* Primary lesson video */}
+            {hasVideo && (
+              <VideoPlayer
+                key={`${lesson.id}-${lesson.videoUrl}`}
+                videoType={lesson.videoType}
+                videoUrl={lesson.videoUrl}
+                videoId={lesson.videoId}
+                mimeType={lesson.videoMimeType}
+                title={lesson.title}
+                startAt={lesson.videoPositionSeconds || 0}
+                onProgress={lesson.videoType === 'UPLOAD' ? handleVideoProgress : undefined}
+              />
+            )}
+
+            {/* Learning materials */}
+            {materials.length > 0 && (
+              <section className="space-y-3">
+                <div className="flex items-center gap-2 font-mono text-xs text-muted-foreground uppercase tracking-wider">
+                  <Paperclip className="h-3.5 w-3.5" />
+                  <span>Learning materials ({materials.length})</span>
+                </div>
+                <MaterialList resources={materials} />
+              </section>
+            )}
+
+            {/* Content blocks, then markdown fallback */}
             {hasBlocks ? (
               <div className="space-y-8">
                 {lesson.contentBlocks!.map((block: ContentBlock) => (
                   <ContentBlockRenderer key={block.id} block={block} />
                 ))}
               </div>
-            ) : (
-              /* Fallback to markdown if no blocks configured */
+            ) : hasMarkdown ? (
               <article className="prose prose-invert prose-zinc max-w-none prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-foreground prose-p:text-sm prose-p:leading-relaxed prose-p:text-slate-300 prose-code:font-mono prose-code:text-xs prose-code:bg-surface-raised prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-foreground prose-code:border prose-code:border-border prose-pre:bg-[#0b0c0e] prose-pre:border prose-pre:border-border prose-pre:rounded-lg prose-pre:p-4 prose-li:text-sm prose-li:text-slate-300">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
                   {lesson.contentMarkdown}
                 </ReactMarkdown>
               </article>
+            ) : !hasVideo && materials.length === 0 ? (
+              <div className="rounded-lg border border-dashed border-border bg-surface/50 p-10 text-center text-xs font-mono text-muted-foreground">
+                This lesson has no content yet.
+              </div>
+            ) : null}
+
+            {/* End-of-chapter quiz prompt */}
+            {showChapterQuizCta && (
+              <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-md bg-amber-500/10 text-amber-400">
+                    <ClipboardCheck className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <div className="text-sm font-semibold text-foreground">End of chapter: {lesson.topicTitle}</div>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {lesson.chapterQuizRequired
+                        ? 'Pass the chapter quiz to unlock the next chapter.'
+                        : 'Test what you learned with the optional chapter quiz.'}
+                      {!lesson.completed && ' Mark this lesson complete first.'}
+                    </p>
+                  </div>
+                </div>
+                <Link to={`/quizzes/${lesson.chapterQuizId}`} className="shrink-0">
+                  <Button size="sm" className="h-9 text-xs font-semibold gap-1.5 bg-amber-500 hover:bg-amber-400 text-black">
+                    <span>Take chapter quiz</span>
+                    <ChevronRight className="h-3.5 w-3.5" />
+                  </Button>
+                </Link>
+              </div>
             )}
           </main>
         </div>
@@ -244,7 +386,7 @@ export const LessonViewPage: React.FC = () => {
             )}
           </div>
 
-          <div>
+          <div className="flex items-center gap-2">
             {lesson.nextLessonId ? (
               <Button
                 size="sm"
@@ -252,6 +394,24 @@ export const LessonViewPage: React.FC = () => {
                 className="gap-1.5 text-xs h-8 font-semibold bg-primary text-primary-foreground hover:bg-primary/90"
               >
                 <span>Next Lesson</span>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            ) : showChapterQuizCta ? (
+              <Button
+                size="sm"
+                onClick={() => navigate(`/quizzes/${lesson.chapterQuizId}`)}
+                className="gap-1.5 text-xs h-8 font-semibold bg-amber-500 hover:bg-amber-400 text-black"
+              >
+                <ClipboardCheck className="h-3.5 w-3.5" />
+                <span>Chapter Quiz</span>
+              </Button>
+            ) : lesson.nextChapterFirstLessonId ? (
+              <Button
+                size="sm"
+                onClick={() => navigate(`/lessons/${lesson.nextChapterFirstLessonId}`)}
+                className="gap-1.5 text-xs h-8 font-semibold bg-primary text-primary-foreground hover:bg-primary/90"
+              >
+                <span>Next Chapter</span>
                 <ChevronRight className="h-3.5 w-3.5" />
               </Button>
             ) : (

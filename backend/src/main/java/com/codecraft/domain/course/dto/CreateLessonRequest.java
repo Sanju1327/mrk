@@ -1,5 +1,6 @@
 package com.codecraft.domain.course.dto;
 
+import com.codecraft.domain.course.entity.VideoType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.AllArgsConstructor;
@@ -17,9 +18,11 @@ public class CreateLessonRequest {
     @Size(max = 200, message = "Lesson title cannot exceed 200 characters")
     private String title;
 
-    @NotBlank(message = "Lesson slug is required")
+    /** Optional: generated from the title when blank. */
     @Size(max = 200, message = "Lesson slug cannot exceed 200 characters")
     private String slug;
+
+    private String description;
 
     @Builder.Default
     private String contentMarkdown = "";
@@ -28,4 +31,10 @@ public class CreateLessonRequest {
     private int estimatedMinutes = 10;
 
     private Integer displayOrder;
+
+    /** Optional YouTube video to attach on creation. */
+    private VideoType videoType;
+    private String videoUrl;
+
+    private Boolean published;
 }

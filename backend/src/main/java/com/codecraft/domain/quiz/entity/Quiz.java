@@ -50,6 +50,10 @@ public class Quiz {
     @Builder.Default
     private int passingScorePercentage = 70;
 
+    @Column(name = "is_enabled", nullable = false)
+    @Builder.Default
+    private boolean enabled = true;
+
     @OneToMany(mappedBy = "quiz", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("displayOrder ASC")
     @Builder.Default

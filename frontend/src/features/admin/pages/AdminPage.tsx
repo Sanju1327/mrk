@@ -18,9 +18,15 @@ import {
   Clock,
   X,
   AlertTriangle,
+  BookPlus,
+  Edit3,
+  Eye,
+  Archive,
+  Trash2,
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { adminApi } from '@/lib/admin-api';
-import { courseApi } from '@/lib/course-api';
+import { teacherApi } from '@/lib/teacher-api';
 import { problemApi } from '@/lib/problem-api';
 import type { TeacherSummary, CreateTeacherPayload } from '@/types/admin';
 import type { CourseSummary } from '@/types/course';
@@ -29,6 +35,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
+import { CreateCourseModal } from '@/features/teacher/components/CreateCourseModal';
+import { CourseStatusBadge } from '@/features/teacher/components/CourseStatusBadge';
 
 export const AdminPage: React.FC = () => {
   const queryClient = useQueryClient();
@@ -38,6 +46,7 @@ export const AdminPage: React.FC = () => {
 
   // Modals
   const [showCreateTeacherModal, setShowCreateTeacherModal] = useState(false);
+  const [showCreateCourseModal, setShowCreateCourseModal] = useState(false);
   const [showResetPasswordModal, setShowResetPasswordModal] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState<TeacherSummary | null>(null);
 
@@ -65,9 +74,10 @@ export const AdminPage: React.FC = () => {
     queryFn: adminApi.getTeachers,
   });
 
+  // Super admins get every course (drafts included) from the teacher endpoint.
   const { data: courses = [] } = useQuery({
-    queryKey: ['admin-courses'],
-    queryFn: courseApi.getAllCourses,
+    queryKey: ['teacher-courses'],
+    queryFn: teacherApi.getMyCourses,
   });
 
   const { data: problemsPage } = useQuery({
@@ -76,6 +86,78 @@ export const AdminPage: React.FC = () => {
   });
 
   const problems = problemsPage?.content || [];
+
+  const flash = (msg: string) => {
+    setSuccessMessage(msg);
+    setTimeout(() => setSuccessMessage(null), 4000);
+  };
+  const flashError = (err: any, fallback: string) => {
+    setFormError(err.response?.data?.message || fallback);
+    setTimeout(() => setFormError(null), 6000);
+  };
+  const refreshCourses = () => {
+    queryClient.invalidateQueries({ queryKey: ['teacher-courses'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-stats'] });
+    queryClient.invalidateQueries({ queryKey: ['admin-teachers'] });
+  };
+
+  const publishCourseMutation = useMutation({
+    mutationFn: teacherApi.publishCourse,
+    onSuccess: () => {
+      refreshCourses();
+      flash('Course published');
+    },
+    onError: (err: any) => flashError(err, 'Failed to publish course (check the course has published content)'),
+  });
+  const unpublishCourseMutation = useMutation({
+    mutationFn: teacherApi.unpublishCourse,
+    onSuccess: () => {
+      refreshCourses();
+      flash('Course reverted to draft');
+    },
+    onError: (err: any) => flashError(err, 'Failed to unpublish course'),
+  });
+  const archiveCourseMutation = useMutation({
+    mutationFn: teacherApi.archiveCourse,
+    onSuccess: () => {
+      refreshCourses();
+      flash('Course archived');
+    },
+    onError: (err: any) => flashError(err, 'Failed to archive course'),
+  });
+  const deleteCourseMutation = useMutation({
+    mutationFn: teacherApi.deleteCourse,
+    onSuccess: () => {
+      refreshCourses();
+      flash('Course deleted permanently');
+    },
+    onError: (err: any) => flashError(err, 'Failed to delete course'),
+  });
+  const assignTeacherMutation = useMutation({
+    mutationFn: ({ course, teacherId }: { course: CourseSummary; teacherId: number }) =>
+      teacherApi.updateCourse(course.id, {
+        title: course.title,
+        description: course.description,
+        category: course.category,
+        level: course.level,
+        estimatedDuration: course.estimatedDuration,
+        language: course.language,
+        iconUrl: course.iconUrl ?? undefined,
+        thumbnailUrl: course.thumbnailUrl ?? undefined,
+        teacherId,
+      }),
+    onSuccess: () => {
+      refreshCourses();
+      flash('Instructor reassigned');
+    },
+    onError: (err: any) => flashError(err, 'Failed to reassign instructor'),
+  });
+  const courseActionBusy =
+    publishCourseMutation.isPending ||
+    unpublishCourseMutation.isPending ||
+    archiveCourseMutation.isPending ||
+    deleteCourseMutation.isPending ||
+    assignTeacherMutation.isPending;
 
   // Mutations
   const createTeacherMutation = useMutation({
@@ -94,7 +176,7 @@ export const AdminPage: React.FC = () => {
   });
 
   const toggleStatusMutation = useMutation({
-    mutationFn: adminApi.toggleTeacherStatus,
+    mutationFn: (t: TeacherSummary) => adminApi.toggleTeacherStatus(t.id, !t.active),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-teachers'] });
       setSuccessMessage('Teacher status updated');
@@ -156,11 +238,20 @@ export const AdminPage: React.FC = () => {
             System Operations & Teacher Governance
           </h1>
           <p className="text-xs font-mono text-muted-foreground">
-            Role: <span className="text-foreground">{isSuperAdmin ? 'ROLE_SUPER_ADMIN' : 'ROLE_ADMIN'}</span> &bull; 100% Live MySQL Database &bull; Central Authority
+            Role: <span className="text-foreground">{isSuperAdmin ? 'ROLE_SUPER_ADMIN' : 'ROLE_ADMIN'}</span> &bull; Live PostgreSQL Database &bull; Central Authority
           </p>
         </div>
 
         <div className="flex items-center gap-2 font-mono text-xs">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setShowCreateCourseModal(true)}
+            className="h-9 gap-2 border-amber-500/40 text-amber-300 hover:bg-amber-500/10 font-medium"
+          >
+            <BookPlus className="h-4 w-4" />
+            <span>Create Course</span>
+          </Button>
           <Button
             size="sm"
             onClick={() => {
@@ -180,6 +271,12 @@ export const AdminPage: React.FC = () => {
         <div className="flex items-center gap-2 p-3 rounded-md bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-mono">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
           <span>{successMessage}</span>
+        </div>
+      )}
+      {formError && !showCreateTeacherModal && !showResetPasswordModal && (
+        <div className="flex items-center gap-2 p-3 rounded-md bg-destructive/10 border border-destructive/30 text-destructive text-xs font-mono">
+          <AlertTriangle className="h-4 w-4 shrink-0" />
+          <span>{formError}</span>
         </div>
       )}
 
@@ -398,7 +495,7 @@ export const AdminPage: React.FC = () => {
                                 ? 'text-amber-400 hover:text-amber-300 border-amber-500/30 hover:bg-amber-500/10'
                                 : 'text-emerald-400 hover:text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/10'
                             }`}
-                            onClick={() => toggleStatusMutation.mutate(t.id)}
+                            onClick={() => toggleStatusMutation.mutate(t)}
                             title={t.active ? 'Disable teacher' : 'Enable teacher'}
                           >
                             <Power className="h-3 w-3" />
@@ -426,39 +523,117 @@ export const AdminPage: React.FC = () => {
                   <th className="py-3 px-4">Instructor</th>
                   <th className="py-3 px-4">Category</th>
                   <th className="py-3 px-4">Level</th>
-                  <th className="py-3 px-4">Modules</th>
+                  <th className="py-3 px-4">Chapters</th>
                   <th className="py-3 px-4">Lessons</th>
-                  <th className="py-3 px-4 text-right">Status</th>
+                  <th className="py-3 px-4">Status</th>
+                  <th className="py-3 px-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/60">
-                {filteredCourses.map((c: CourseSummary) => (
-                  <tr key={c.id} className="hover:bg-surface-raised transition-colors">
-                    <td className="py-3.5 px-4 font-sans font-medium text-foreground">
-                      <div className="flex items-center gap-2">
-                        <span>{c.title}</span>
-                      </div>
-                      <div className="text-[11px] font-mono text-muted-foreground">{c.slug}</div>
-                    </td>
-                    <td className="py-3.5 px-4 font-sans text-muted-foreground">
-                      {c.instructor?.fullName || 'Super Admin'}
-                    </td>
-                    <td className="py-3.5 px-4 text-foreground">{c.category || 'General'}</td>
-                    <td className="py-3.5 px-4">
-                      <Badge variant={c.level === 'BEGINNER' ? 'easy' : 'medium'}>
-                        {c.level}
-                      </Badge>
-                    </td>
-                    <td className="py-3.5 px-4 text-foreground">{c.topicCount}</td>
-                    <td className="py-3.5 px-4 text-foreground">{c.lessonCount}</td>
-                    <td className="py-3.5 px-4 text-right">
-                      <span className="inline-flex items-center gap-1 text-emerald-400">
-                        <CheckCircle2 className="h-3 w-3" />
-                        <span>{c.status || 'PUBLISHED'}</span>
-                      </span>
+                {filteredCourses.length === 0 && (
+                  <tr>
+                    <td colSpan={8} className="py-10 text-center text-muted-foreground">
+                      No courses yet. Use “Create Course” to start a draft and assign an instructor.
                     </td>
                   </tr>
-                ))}
+                )}
+                {filteredCourses.map((c: CourseSummary) => {
+                  const status = c.status || (c.published ? 'PUBLISHED' : 'DRAFT');
+                  return (
+                    <tr key={c.id} className="hover:bg-surface-raised transition-colors">
+                      <td className="py-3.5 px-4 font-sans font-medium text-foreground">
+                        <div className="flex items-center gap-2">
+                          <span>{c.title}</span>
+                        </div>
+                        <div className="text-[11px] font-mono text-muted-foreground">{c.slug}</div>
+                      </td>
+                      <td className="py-3.5 px-4 font-sans text-muted-foreground">
+                        <select
+                          value={c.instructor?.id ?? ''}
+                          disabled={courseActionBusy}
+                          onChange={(e) => {
+                            const teacherId = Number(e.target.value);
+                            if (teacherId && teacherId !== c.instructor?.id) assignTeacherMutation.mutate({ course: c, teacherId });
+                          }}
+                          className="h-8 max-w-[180px] rounded-md border border-border bg-surface px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-purple-500"
+                          title="Assign instructor"
+                        >
+                          {!c.instructor && <option value="">Unassigned</option>}
+                          {c.instructor && !teachers.some((t) => t.id === c.instructor?.id) && (
+                            <option value={c.instructor.id}>{c.instructor.fullName}</option>
+                          )}
+                          {teachers.map((t) => (
+                            <option key={t.id} value={t.id} disabled={!t.active}>
+                              {t.fullName}{!t.active ? ' (inactive)' : ''}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td className="py-3.5 px-4 text-foreground">{c.category || 'General'}</td>
+                      <td className="py-3.5 px-4">
+                        <Badge variant={c.level === 'BEGINNER' ? 'easy' : c.level === 'ADVANCED' ? 'hard' : 'medium'}>
+                          {c.level}
+                        </Badge>
+                      </td>
+                      <td className="py-3.5 px-4 text-foreground">{c.topicCount}</td>
+                      <td className="py-3.5 px-4 text-foreground">{c.lessonCount}</td>
+                      <td className="py-3.5 px-4">
+                        <CourseStatusBadge status={status} />
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center justify-end gap-1">
+                          <Link to={`/teacher/courses/${c.id}/builder`} title="Open course builder">
+                            <Button size="sm" variant="outline" className="h-7 px-2 text-xs gap-1 border-purple-500/30 text-purple-300 hover:bg-purple-500/10">
+                              <Edit3 className="h-3 w-3" /> Builder
+                            </Button>
+                          </Link>
+                          <Link to={`/courses/${c.slug}?preview=1`} target="_blank" title="Preview as student">
+                            <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
+                              <Eye className="h-3.5 w-3.5" />
+                            </Button>
+                          </Link>
+                          {status === 'PUBLISHED' ? (
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-amber-400 hover:bg-amber-500/10" disabled={courseActionBusy} onClick={() => unpublishCourseMutation.mutate(c.id)}>
+                              Unpublish
+                            </Button>
+                          ) : (
+                            <Button size="sm" variant="ghost" className="h-7 px-2 text-xs text-emerald-400 hover:bg-emerald-500/10" disabled={courseActionBusy} onClick={() => publishCourseMutation.mutate(c.id)}>
+                              Publish
+                            </Button>
+                          )}
+                          {status !== 'ARCHIVED' && (
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                              title="Archive"
+                              disabled={courseActionBusy}
+                              onClick={() => {
+                                if (window.confirm(`Archive "${c.title}"?`)) archiveCourseMutation.mutate(c.id);
+                              }}
+                            >
+                              <Archive className="h-3.5 w-3.5" />
+                            </Button>
+                          )}
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 w-7 p-0 text-muted-foreground hover:text-rose-400"
+                            title="Delete permanently"
+                            disabled={courseActionBusy}
+                            onClick={() => {
+                              const typed = window.prompt(`Permanently delete this course and all its content, uploads and student progress?\nType the title to confirm:\n${c.title}`);
+                              if (typed === c.title) deleteCourseMutation.mutate(c.id);
+                              else if (typed !== null) flashError({}, 'Title did not match — course not deleted');
+                            }}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -533,11 +708,11 @@ export const AdminPage: React.FC = () => {
               </div>
               <div className="flex justify-between">
                 <span>Database Engine:</span>
-                <span className="text-emerald-400">MySQL 5.5+ (HikariCP Pool)</span>
+                <span className="text-emerald-400">PostgreSQL (Supabase, HikariCP Pool)</span>
               </div>
               <div className="flex justify-between">
                 <span>Flyway Migration Version:</span>
-                <span className="text-foreground">V4 — Admin Teacher CMS Schema</span>
+                <span className="text-foreground">V7 — Course Content Management</span>
               </div>
             </div>
           </div>
@@ -735,6 +910,8 @@ export const AdminPage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <CreateCourseModal open={showCreateCourseModal} onClose={() => setShowCreateCourseModal(false)} />
     </div>
   );
 };

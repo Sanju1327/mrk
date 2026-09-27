@@ -1,14 +1,12 @@
 package com.codecraft.domain.quiz.service;
 
+import com.codecraft.common.exception.BadRequestException;
+import com.codecraft.common.exception.ForbiddenException;
 import com.codecraft.common.exception.ResourceNotFoundException;
-import com.codecraft.domain.course.entity.Lesson;
-import com.codecraft.domain.course.entity.Topic;
-import com.codecraft.domain.course.repository.LessonRepository;
-import com.codecraft.domain.course.repository.TopicRepository;
-import com.codecraft.domain.quiz.dto.CreateQuizRequest;
-import com.codecraft.domain.quiz.dto.QuizResultDto;
-import com.codecraft.domain.quiz.dto.StudentQuizDto;
-import com.codecraft.domain.quiz.dto.SubmitQuizRequest;
+import com.codecraft.domain.course.entity.Course;
+import com.codecraft.domain.course.service.CourseAccess;
+import com.codecraft.domain.course.service.CourseProgressService;
+import com.codecraft.domain.quiz.dto.*;
 import com.codecraft.domain.quiz.entity.*;
 import com.codecraft.domain.quiz.repository.QuizAttemptAnswerRepository;
 import com.codecraft.domain.quiz.repository.QuizAttemptRepository;
@@ -21,10 +19,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
+/**
+ * Student-facing quiz flow: fetch, attempt rules, server-side grading, attempt history.
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -33,37 +32,132 @@ public class QuizService {
     private final QuizRepository quizRepository;
     private final QuizAttemptRepository quizAttemptRepository;
     private final QuizAttemptAnswerRepository quizAttemptAnswerRepository;
-    private final TopicRepository topicRepository;
-    private final LessonRepository lessonRepository;
+    private final CourseProgressService courseProgressService;
 
-    @Transactional(readOnly = true)
-    public StudentQuizDto getQuizForStudent(Long quizId) {
+    private static Course courseOf(Quiz quiz) {
+        if (quiz.getTopic() != null) return quiz.getTopic().getCourse();
+        if (quiz.getLesson() != null) return quiz.getLesson().getTopic().getCourse();
+        return null;
+    }
+
+    private Quiz loadVisibleQuiz(Long quizId, User user) {
         Quiz quiz = quizRepository.findById(quizId)
                 .orElseThrow(() -> new ResourceNotFoundException("Quiz not found with id: " + quizId));
-        return StudentQuizDto.fromEntity(quiz);
+        Course course = courseOf(quiz);
+        boolean author = course != null && CourseAccess.isOwnerOrAdmin(course, user);
+        if (!author) {
+            if (course != null && !course.isPublished()) {
+                throw new ResourceNotFoundException("Quiz not found or unpublished");
+            }
+            if (!quiz.isEnabled()) {
+                throw new ResourceNotFoundException("This quiz is currently disabled");
+            }
+        }
+        return quiz;
+    }
+
+    /**
+     * Attempt state for a student; authors always get an unrestricted state (preview).
+     */
+    private QuizAttemptInfoDto attemptInfoFor(Quiz quiz, User user, boolean author) {
+        List<QuizAttempt> attempts = quizAttemptRepository.findByUserIdAndQuizIdOrderByCreatedAtDesc(user.getId(), quiz.getId());
+        QuizAttemptInfoDto.QuizAttemptInfoDtoBuilder builder = QuizAttemptInfoDto.builder()
+                .attemptsUsed(attempts.size())
+                .passed(attempts.stream().anyMatch(QuizAttempt::isPassed))
+                .bestPercentage(attempts.stream()
+                        .map(a -> a.getPercentage() != null ? a.getPercentage().doubleValue() : 0.0)
+                        .max(Double::compareTo).orElse(null))
+                .lastPercentage(attempts.isEmpty() ? null
+                        : (attempts.get(0).getPercentage() != null ? attempts.get(0).getPercentage().doubleValue() : 0.0))
+                .lastAttemptAt(attempts.isEmpty() ? null : attempts.get(0).getCreatedAt());
+
+        if (quiz.getTopic() == null) {
+            // Lesson-level quizzes have no chapter settings: unlimited attempts.
+            return builder.allowRetakes(true).maxAttempts(null).canAttempt(true).build();
+        }
+
+        builder.allowRetakes(quiz.getTopic().isAllowQuizRetakes())
+                .maxAttempts(quiz.getTopic().getMaxQuizAttempts());
+
+        if (author) {
+            return builder.canAttempt(true).build();
+        }
+
+        Course course = quiz.getTopic().getCourse();
+        List<CourseProgressService.ChapterState> states = courseProgressService.computeChapterStates(course, user.getId());
+        CourseProgressService.ChapterState state = courseProgressService.findState(states, quiz.getTopic().getId()).orElse(null);
+        if (state == null) {
+            return builder.canAttempt(false).blockedReason("Chapter not found").build();
+        }
+        return builder.canAttempt(state.isCanAttemptQuiz()).blockedReason(state.getQuizBlockedReason()).build();
     }
 
     @Transactional(readOnly = true)
-    public List<StudentQuizDto> getQuizzesByLesson(Long lessonId) {
+    public StudentQuizDto getQuizForStudent(Long quizId, User user) {
+        Quiz quiz = loadVisibleQuiz(quizId, user);
+        Course course = courseOf(quiz);
+        boolean author = course != null && CourseAccess.isOwnerOrAdmin(course, user);
+
+        StudentQuizDto dto = StudentQuizDto.fromEntity(quiz);
+        QuizAttemptInfoDto info = attemptInfoFor(quiz, user, author);
+        dto.setAttemptInfo(info);
+        if (quiz.getTopic() != null) {
+            List<CourseProgressService.ChapterState> states = courseProgressService.computeChapterStates(course, user.getId());
+            dto.setNextChapterFirstLessonId(courseProgressService.nextChapterFirstLessonId(states, quiz.getTopic().getId()));
+        }
+        // Never ship questions to a student who is not allowed to attempt right now.
+        if (!info.isCanAttempt() && !author) {
+            dto.setQuestions(Collections.emptyList());
+        }
+        return dto;
+    }
+
+    @Transactional(readOnly = true)
+    public List<StudentQuizDto> getQuizzesByLesson(Long lessonId, User user) {
         return quizRepository.findAll().stream()
                 .filter(q -> q.getLesson() != null && q.getLesson().getId().equals(lessonId))
+                .filter(q -> q.isEnabled() && courseOf(q) != null && (courseOf(q).isPublished() || CourseAccess.isOwnerOrAdmin(courseOf(q), user)))
                 .map(StudentQuizDto::fromEntity)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public List<StudentQuizDto> getQuizzesByTopic(Long topicId) {
+    public List<StudentQuizDto> getQuizzesByTopic(Long topicId, User user) {
         return quizRepository.findByTopicId(topicId).stream()
+                .filter(q -> q.isEnabled() && courseOf(q) != null && (courseOf(q).isPublished() || CourseAccess.isOwnerOrAdmin(courseOf(q), user)))
                 .map(StudentQuizDto::fromEntity)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<QuizAttemptSummaryDto> getMyAttempts(Long quizId, User user) {
+        loadVisibleQuiz(quizId, user);
+        return quizAttemptRepository.findByUserIdAndQuizIdOrderByCreatedAtDesc(user.getId(), quizId).stream()
+                .map(QuizAttemptSummaryDto::fromEntity)
                 .toList();
     }
 
     @Transactional
     public QuizResultDto submitQuiz(Long quizId, SubmitQuizRequest request, User student) {
-        Quiz quiz = quizRepository.findById(quizId)
-                .orElseThrow(() -> new ResourceNotFoundException("Quiz not found with id: " + quizId));
+        Quiz quiz = loadVisibleQuiz(quizId, student);
+        Course course = courseOf(quiz);
+        boolean author = course != null && CourseAccess.isOwnerOrAdmin(course, student);
+
+        QuizAttemptInfoDto before = attemptInfoFor(quiz, student, author);
+        if (!before.isCanAttempt()) {
+            throw new ForbiddenException(before.getBlockedReason() != null ? before.getBlockedReason() : "You cannot attempt this quiz right now");
+        }
+        if (quiz.getQuestions().isEmpty()) {
+            throw new BadRequestException("This quiz has no questions yet");
+        }
 
         Map<Long, Long> answers = request.getAnswers() != null ? request.getAnswers() : Map.of();
+        Set<Long> questionIds = new HashSet<>();
+        quiz.getQuestions().forEach(q -> questionIds.add(q.getId()));
+        if (!questionIds.containsAll(answers.keySet())) {
+            throw new BadRequestException("Answers reference questions that do not belong to this quiz");
+        }
+
         int totalScore = 0;
         int maxScore = 0;
         List<QuizResultDto.QuestionResultDto> questionResults = new ArrayList<>();
@@ -76,9 +170,8 @@ public class QuizService {
                 .maxScore(0)
                 .percentage(BigDecimal.ZERO)
                 .passed(false)
-                .timeSpentSeconds(request.getTimeSpentSeconds())
+                .timeSpentSeconds(Math.max(0, request.getTimeSpentSeconds()))
                 .build();
-
         QuizAttempt savedAttempt = quizAttemptRepository.save(attempt);
 
         for (Question q : quiz.getQuestions()) {
@@ -89,24 +182,26 @@ public class QuizService {
                     .filter(QuestionOption::isCorrect)
                     .findFirst()
                     .orElse(null);
-
             Long correctOptId = correctOption != null ? correctOption.getId() : null;
+
+            QuestionOption selectedOption = selectedOptId != null
+                    ? q.getOptions().stream().filter(o -> o.getId().equals(selectedOptId)).findFirst().orElse(null)
+                    : null;
+            if (selectedOptId != null && selectedOption == null) {
+                throw new BadRequestException("Selected option does not belong to question " + q.getId());
+            }
+
             boolean isCorrect = selectedOptId != null && selectedOptId.equals(correctOptId);
             int pointsEarned = isCorrect ? q.getPoints() : 0;
             totalScore += pointsEarned;
 
-            QuestionOption selectedOption = selectedOptId != null ?
-                    q.getOptions().stream().filter(o -> o.getId().equals(selectedOptId)).findFirst().orElse(null) :
-                    null;
-
-            QuizAttemptAnswer attemptAnswer = QuizAttemptAnswer.builder()
+            attemptAnswers.add(QuizAttemptAnswer.builder()
                     .attempt(savedAttempt)
                     .question(q)
                     .selectedOption(selectedOption)
                     .correct(isCorrect)
                     .pointsAwarded(pointsEarned)
-                    .build();
-            attemptAnswers.add(attemptAnswer);
+                    .build());
 
             questionResults.add(QuizResultDto.QuestionResultDto.builder()
                     .questionId(q.getId())
@@ -134,72 +229,27 @@ public class QuizService {
         log.info("Student {} submitted quiz {} (id={}): Score {}/{} ({}%) Passed={}",
                 student.getUsername(), quiz.getTitle(), quizId, totalScore, maxScore, percentage, passed);
 
+        Long nextChapterFirstLessonId = null;
+        if (course != null && quiz.getTopic() != null) {
+            courseProgressService.refreshEnrollmentCompletion(student.getId(), course);
+            List<CourseProgressService.ChapterState> states = courseProgressService.computeChapterStates(course, student.getId());
+            nextChapterFirstLessonId = courseProgressService.nextChapterFirstLessonId(states, quiz.getTopic().getId());
+        }
+
         return QuizResultDto.builder()
                 .attemptId(savedAttempt.getId())
                 .quizId(quiz.getId())
                 .quizTitle(quiz.getTitle())
                 .score(totalScore)
                 .maxScore(maxScore)
-                .percentage(percentage)
+                .percentage(Math.round(percentage * 100.0) / 100.0)
                 .passed(passed)
+                .passingScorePercentage(quiz.getPassingScorePercentage())
                 .timeSpentSeconds(request.getTimeSpentSeconds())
                 .questionResults(questionResults)
+                .attemptInfo(attemptInfoFor(quiz, student, author))
+                .courseSlug(course != null ? course.getSlug() : null)
+                .nextChapterFirstLessonId(nextChapterFirstLessonId)
                 .build();
-    }
-
-    @Transactional
-    public StudentQuizDto createQuiz(CreateQuizRequest request, User teacher) {
-        Topic topic = null;
-        if (request.getTopicId() != null) {
-            topic = topicRepository.findById(request.getTopicId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Topic not found: " + request.getTopicId()));
-        }
-
-        Lesson lesson = null;
-        if (request.getLessonId() != null) {
-            lesson = lessonRepository.findById(request.getLessonId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Lesson not found: " + request.getLessonId()));
-        }
-
-        Quiz quiz = Quiz.builder()
-                .topic(topic)
-                .lesson(lesson)
-                .title(request.getTitle())
-                .description(request.getDescription())
-                .timeLimitMinutes(request.getTimeLimitMinutes() > 0 ? request.getTimeLimitMinutes() : 15)
-                .passingScorePercentage(request.getPassingScorePercentage() > 0 ? request.getPassingScorePercentage() : 70)
-                .build();
-
-        if (request.getQuestions() != null) {
-            int qOrder = 1;
-            for (CreateQuizRequest.QuestionInputDto qDto : request.getQuestions()) {
-                Question question = Question.builder()
-                        .quiz(quiz)
-                        .questionText(qDto.getQuestionText())
-                        .questionType(qDto.getQuestionType() != null ? qDto.getQuestionType() : QuestionType.SINGLE_CHOICE)
-                        .points(qDto.getPoints() > 0 ? qDto.getPoints() : 10)
-                        .explanation(qDto.getExplanation())
-                        .displayOrder(qDto.getDisplayOrder() > 0 ? qDto.getDisplayOrder() : qOrder++)
-                        .build();
-
-                if (qDto.getOptions() != null) {
-                    int optOrder = 1;
-                    for (CreateQuizRequest.OptionInputDto optDto : qDto.getOptions()) {
-                        QuestionOption option = QuestionOption.builder()
-                                .question(question)
-                                .optionText(optDto.getOptionText())
-                                .correct(optDto.isCorrect())
-                                .displayOrder(optDto.getDisplayOrder() > 0 ? optDto.getDisplayOrder() : optOrder++)
-                                .build();
-                        question.getOptions().add(option);
-                    }
-                }
-                quiz.getQuestions().add(question);
-            }
-        }
-
-        Quiz saved = quizRepository.save(quiz);
-        log.info("Teacher {} created quiz: {} (id={})", teacher.getUsername(), saved.getTitle(), saved.getId());
-        return StudentQuizDto.fromEntity(saved);
     }
 }

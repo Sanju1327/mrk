@@ -81,7 +81,7 @@ export const ManagementLoginPage: React.FC = () => {
           </div>
 
           <div className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Teacher / Super Admin Login</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Teacher Login</h1>
             <p className="text-xs text-muted-foreground">
               Direct access for course instructors (Teachers) and platform owners (Super Admin)
             </p>
@@ -104,7 +104,7 @@ export const ManagementLoginPage: React.FC = () => {
             <Input
               id="management-username"
               type="text"
-              placeholder="e.g. Sanju@gmail.com or instructor username"
+              placeholder="e.g. admin@gmail.com or instructor username"
               autoComplete="username"
               className="border-border focus:border-amber-500/60 focus:ring-amber-500/20"
               {...register('usernameOrEmail')}

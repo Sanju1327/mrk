@@ -11,6 +11,7 @@ import { ProblemListPage } from '@/features/problems/pages/ProblemListPage';
 import { ProblemWorkspacePage } from '@/features/problems/pages/ProblemWorkspacePage';
 import { DashboardPage } from '@/features/dashboard/pages/DashboardPage';
 import { QuizPage } from '@/features/quizzes/pages/QuizPage';
+import { ChapterQuizPage } from '@/features/quizzes/pages/ChapterQuizPage';
 import { ProgressPage } from '@/features/progress/pages/ProgressPage';
 import { ProfilePage } from '@/features/profile/pages/ProfilePage';
 import { ManagementRoute } from '@/features/admin/ManagementRoute';
@@ -33,6 +34,14 @@ export const AppRoutes: React.FC = () => {
         <Route path="/quizzes" element={<QuizPage />} />
 
         {/* Student Protected Routes */}
+        <Route
+          path="/quizzes/:quizId"
+          element={
+            <StudentProtectedRoute>
+              <ChapterQuizPage />
+            </StudentProtectedRoute>
+          }
+        />
         <Route
           path="/lessons/:lessonId"
           element={
